@@ -9,6 +9,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 TRUNCATE TABLE MovimientoInventario;
 TRUNCATE TABLE DetalleVentaArticulo;
 TRUNCATE TABLE DetalleVenta;
+TRUNCATE TABLE Pago;
 TRUNCATE TABLE Venta;
 TRUNCATE TABLE CorteCaja;
 TRUNCATE TABLE Producto;
@@ -20,7 +21,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- ---------- Usuario ----------
 INSERT INTO Usuario (NombreUsuario, NombreCompleto) VALUES
-('admin', 'Nidia - Dueña');
+('admin', 'Dueña');
 
 -- ---------- Proveedores (genéricos de prueba) ----------
 INSERT INTO Proveedor (Nombre, Telefono) VALUES
@@ -42,7 +43,7 @@ INSERT INTO Categoria (Nombre, Tipo) VALUES
 ('Tapas',    'Material');   -- 9
 
 -- ---------- Artículos del inventario ----------
--- Stock = conteo inicial de prueba (Nidia capturará el real)
+-- Stock = conteo inicial de prueba (la dueña capturará el real)
 INSERT INTO Articulo
  (CategoriaId, ProveedorId, Nombre, Variante, Unidad, Stock, StockMinimo, SeVendeSuelto, PrecioSuelto) VALUES
 -- Paletas
@@ -128,19 +129,30 @@ INSERT INTO Producto (Nombre, Descripcion, Precio) VALUES
 
 -- ---------- Cortes de caja ----------
 INSERT INTO CorteCaja (UsuarioId, FechaApertura, FondoInicial, FechaCierre, EfectivoContado, Estado, Observaciones) VALUES
-(1, '2026-11-17 13:00:00', 500.00, '2026-11-17 21:00:00', 910.00, 'Cerrado', 'Faltaron $5 en el conteo'), -- 1 (ayer)
+(1, '2026-11-17 13:00:00', 500.00, '2026-11-17 21:00:00', 750.00, 'Cerrado', 'Faltaron $5 en el conteo'), -- 1 (ayer)
 (1, '2026-11-18 13:00:00', 500.00, NULL, NULL, 'Abierto', NULL);                                          -- 2 (hoy)
 
 -- ---------- Ventas ----------
-INSERT INTO Venta (CorteId, UsuarioId, Fecha, NombreOrden, Tipo, Subtotal, Descuento, MotivoDescuento, Total, MetodoPago, PagoCon, Cambio, Estado) VALUES
-(1, 1, '2026-11-17 13:20:00', 'Ana',      'Venta',           155.00,  0.00, NULL,       155.00, 'Efectivo',      200.00, 45.00, 'Pagada'),    -- 1
-(1, 1, '2026-11-17 14:05:00', 'Luis',     'Venta',           155.00,  0.00, NULL,       155.00, 'Tarjeta',       NULL,   NULL,  'Pagada'),    -- 2
-(1, 1, '2026-11-17 15:30:00', 'Tía Rosa', 'Venta',           150.00, 30.00, 'Familiar', 120.00, 'Transferencia', NULL,   NULL,  'Pagada'),    -- 3 con descuento
-(1, 1, '2026-11-17 17:10:00', 'Nidia',    'ConsumoPersonal',  60.00,  0.00, NULL,        60.00, NULL,            NULL,   NULL,  'Pagada'),    -- 4 consumo personal
-(1, 1, '2026-11-17 18:00:00', 'Karla',    'Venta',           260.00,  0.00, NULL,       260.00, 'Efectivo',      300.00, 40.00, 'Pagada'),    -- 5
-(1, 1, '2026-11-17 19:30:00', 'Pedro',    'Venta',            60.00,  0.00, NULL,        60.00, 'Efectivo',      100.00, 40.00, 'Cancelada'), -- 6 cancelada
-(2, 1, '2026-11-18 13:15:00', 'Sofi',     'Venta',           175.00,  0.00, NULL,       175.00, 'Efectivo',      200.00, 25.00, 'Pagada'),    -- 7
-(2, 1, '2026-11-18 14:00:00', 'Mario',    'Venta',           160.00,  0.00, NULL,       160.00, 'Tarjeta',       NULL,   NULL,  'Pagada');    -- 8
+INSERT INTO Venta (CorteId, UsuarioId, Fecha, NombreOrden, Tipo, Subtotal, Descuento, MotivoDescuento, Total, EfectivoRecibido, Cambio, Estado) VALUES
+(1, 1, '2026-11-17 13:20:00', 'Ana',      'Venta',           155.00,  0.00, NULL,       155.00, 200.00, 45.00, 'Pagada'),    -- 1 efectivo
+(1, 1, '2026-11-17 14:05:00', 'Luis',     'Venta',           155.00,  0.00, NULL,       155.00, NULL,   NULL,  'Pagada'),    -- 2 tarjeta
+(1, 1, '2026-11-17 15:30:00', 'Tía Rosa', 'Venta',           150.00, 30.00, 'Familiar', 120.00, NULL,   NULL,  'Pagada'),    -- 3 transferencia con descuento
+(1, 1, '2026-11-17 17:10:00', 'Familia',  'ConsumoPersonal',  60.00,  0.00, NULL,        60.00, NULL,   NULL,  'Pagada'),    -- 4 consumo personal (sin pago)
+(1, 1, '2026-11-17 18:00:00', 'Karla',    'Venta',           260.00,  0.00, NULL,       260.00, 100.00,  0.00, 'Pagada'),    -- 5 PAGO MIXTO
+(1, 1, '2026-11-17 19:30:00', 'Pedro',    'Venta',            60.00,  0.00, NULL,        60.00, 100.00, 40.00, 'Cancelada'), -- 6 cancelada
+(2, 1, '2026-11-18 13:15:00', 'Sofi',     'Venta',           175.00,  0.00, NULL,       175.00, 200.00, 25.00, 'Pagada'),    -- 7 efectivo
+(2, 1, '2026-11-18 14:00:00', 'Mario',    'Venta',           160.00,  0.00, NULL,       160.00, NULL,   NULL,  'Pagada');    -- 8 tarjeta
+
+-- ---------- Pagos (una venta puede tener varios) ----------
+INSERT INTO Pago (VentaId, MetodoPago, Monto) VALUES
+(1, 'Efectivo',      155.00),
+(2, 'Tarjeta',       155.00),
+(3, 'Transferencia', 120.00),
+(5, 'Tarjeta',       160.00),   -- Karla: $160 con tarjeta
+(5, 'Efectivo',      100.00),   --        + $100 en efectivo
+(6, 'Efectivo',       60.00),
+(7, 'Efectivo',      175.00),
+(8, 'Tarjeta',       160.00);
 
 -- ---------- Detalle de ventas (platillo O artículo suelto) ----------
 INSERT INTO DetalleVenta (VentaId, ProductoId, ArticuloId, Cantidad, PrecioUnitario, Subtotal) VALUES
@@ -215,3 +227,9 @@ FROM Venta
 WHERE Tipo = 'Venta' AND Estado = 'Pagada'
 GROUP BY CorteId;
 
+-- Dinero por método de pago (Efectivo 430, Tarjeta 475, Transferencia 120)
+SELECT p.MetodoPago, SUM(p.Monto) AS Total
+FROM Pago p
+JOIN Venta v ON v.VentaId = p.VentaId
+WHERE v.Estado = 'Pagada'
+GROUP BY p.MetodoPago;

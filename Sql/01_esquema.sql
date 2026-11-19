@@ -77,16 +77,18 @@ CREATE TABLE Producto (
     CONSTRAINT CK_Producto_Precio CHECK (Precio > 0)
 );
 
--- Apertura y cierre de caja de cada día
+-- Apertura y cierre de caja (un corte por día)
 CREATE TABLE CorteCaja (
     CorteId         INT AUTO_INCREMENT PRIMARY KEY,
     UsuarioId       INT           NOT NULL,
     FechaApertura   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FondoInicial    DECIMAL(10,2) NOT NULL DEFAULT 0,   -- efectivo con el que abren
+    FechaCorte      DATE          AS (DATE(FechaApertura)) STORED,  -- se calcula sola
+    FondoInicial    DECIMAL(10,2) NOT NULL DEFAULT 0,
     FechaCierre     DATETIME      NULL,
-    EfectivoContado DECIMAL(10,2) NULL,                 -- lo que cuentan al cerrar
+    EfectivoContado DECIMAL(10,2) NULL,
     Estado          ENUM('Abierto','Cerrado') NOT NULL DEFAULT 'Abierto',
     Observaciones   VARCHAR(200)  NULL,
+    CONSTRAINT UQ_Corte_Fecha UNIQUE (FechaCorte),
     CONSTRAINT CK_Corte_Fondo CHECK (FondoInicial >= 0),
     CONSTRAINT CK_Corte_Estado CHECK (
         (Estado = 'Abierto' AND FechaCierre IS NULL AND EfectivoContado IS NULL) OR
@@ -96,35 +98,44 @@ CREATE TABLE CorteCaja (
         REFERENCES Usuario (UsuarioId)
 );
 
--- Encabezado de cada venta (el "ticket")
+--- Encabezado de cada venta (el "ticket")
 CREATE TABLE Venta (
-    VentaId         INT AUTO_INCREMENT PRIMARY KEY,
-    CorteId         INT           NOT NULL,
-    UsuarioId       INT           NOT NULL,
-    Fecha           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    NombreOrden     VARCHAR(50)   NULL,                 -- para llamar al cliente
-    Tipo            ENUM('Venta','ConsumoPersonal') NOT NULL DEFAULT 'Venta',
-    Subtotal        DECIMAL(10,2) NOT NULL,
-    Descuento       DECIMAL(10,2) NOT NULL DEFAULT 0,
-    MotivoDescuento VARCHAR(100)  NULL,                 -- familiar, amigo...
-    Total           DECIMAL(10,2) NOT NULL,
-    MetodoPago      ENUM('Efectivo','Tarjeta','Transferencia') NULL,
-    PagoCon         DECIMAL(10,2) NULL,
-    Cambio          DECIMAL(10,2) NULL,
-    Estado          ENUM('Pagada','Cancelada') NOT NULL DEFAULT 'Pagada',
+    VentaId          INT AUTO_INCREMENT PRIMARY KEY,
+    CorteId          INT           NOT NULL,
+    UsuarioId        INT           NOT NULL,
+    Fecha            DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    NombreOrden      VARCHAR(50)   NULL,
+    Tipo             ENUM('Venta','ConsumoPersonal') NOT NULL DEFAULT 'Venta',
+    Subtotal         DECIMAL(10,2) NOT NULL,
+    Descuento        DECIMAL(10,2) NOT NULL DEFAULT 0,
+    MotivoDescuento  VARCHAR(100)  NULL,
+    Total            DECIMAL(10,2) NOT NULL,
+    EfectivoRecibido DECIMAL(10,2) NULL,     -- billete que dio el cliente
+    Cambio           DECIMAL(10,2) NULL,
+    Estado           ENUM('Pagada','Cancelada') NOT NULL DEFAULT 'Pagada',
     CONSTRAINT CK_Venta_Subtotal  CHECK (Subtotal >= 0),
     CONSTRAINT CK_Venta_Descuento CHECK (Descuento >= 0 AND Descuento <= Subtotal),
     CONSTRAINT CK_Venta_Total     CHECK (Total = Subtotal - Descuento),
     CONSTRAINT CK_Venta_Motivo    CHECK (Descuento = 0 OR MotivoDescuento IS NOT NULL),
-    CONSTRAINT CK_Venta_Tipo CHECK (
-        (Tipo = 'Venta'           AND MetodoPago IS NOT NULL) OR
-        (Tipo = 'ConsumoPersonal' AND MetodoPago IS NULL AND Descuento = 0)),
-    CONSTRAINT CK_Venta_Efectivo CHECK (
-        (MetodoPago = 'Efectivo') OR (PagoCon IS NULL AND Cambio IS NULL)),
+    CONSTRAINT CK_Venta_Consumo   CHECK (
+        Tipo = 'Venta' OR (Descuento = 0 AND EfectivoRecibido IS NULL)),
     CONSTRAINT CK_Venta_Cambio CHECK (
-        PagoCon IS NULL OR (PagoCon >= Total AND Cambio = PagoCon - Total)),
+        (EfectivoRecibido IS NULL AND Cambio IS NULL) OR
+        (EfectivoRecibido > 0 AND Cambio >= 0 AND Cambio < EfectivoRecibido)),
     CONSTRAINT FK_Venta_Corte   FOREIGN KEY (CorteId)   REFERENCES CorteCaja (CorteId),
     CONSTRAINT FK_Venta_Usuario FOREIGN KEY (UsuarioId) REFERENCES Usuario (UsuarioId)
+);
+
+-- Pagos de cada venta (permite pago mixto)
+CREATE TABLE Pago (
+    PagoId     INT AUTO_INCREMENT PRIMARY KEY,
+    VentaId    INT           NOT NULL,
+    MetodoPago ENUM('Efectivo','Tarjeta','Transferencia') NOT NULL,
+    Monto      DECIMAL(10,2) NOT NULL,
+    CONSTRAINT UQ_Pago_Venta_Metodo UNIQUE (VentaId, MetodoPago),
+    CONSTRAINT CK_Pago_Monto CHECK (Monto > 0),
+    CONSTRAINT FK_Pago_Venta FOREIGN KEY (VentaId)
+        REFERENCES Venta (VentaId) ON DELETE CASCADE
 );
 
 -- Renglones de cada venta: un platillo del menú O un artículo suelto
