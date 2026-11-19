@@ -1,7 +1,13 @@
+using MaizitosBaja.Datos;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
+
+// Conexión a MySQL (la cadena viene de User Secrets)
+var cadena = builder.Configuration.GetConnectionString("MaizitosBaja") ?? "";
+builder.Services.AddSingleton(new ConexionBD(cadena));
 
 var app = builder.Build();
 
