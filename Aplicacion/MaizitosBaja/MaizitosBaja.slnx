@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="MaizitosBaja.Datos/MaizitosBaja.Datos.csproj" />
+  <Project Path="MaizitosBaja.Entidades/MaizitosBaja.Entidades.csproj" />
+  <Project Path="MaizitosBaja.Negocios/MaizitosBaja.Negocios.csproj" />
+  <Project Path="MaizitosBaja.Web/MaizitosBaja.Web.csproj" />
+</Solution>
