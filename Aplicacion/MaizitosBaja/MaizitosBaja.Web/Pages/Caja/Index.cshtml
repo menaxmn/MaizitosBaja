@@ -1,0 +1,198 @@
+@page
+@model MaizitosBaja.Web.Pages.Caja.IndexModel
+@{
+    ViewData["Title"] = "Caja";
+    var corte = Model.Abierta ?? Model.Cerrada;
+}
+
+<h2 class="mb-3">Caja</h2>
+
+@if (TempData["Mensaje"] is string mensaje)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @mensaje <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] is string errorTemp)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @errorTemp <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+
+@if (Model.Abierta == null)
+{
+    <!-- No hay caja abierta: abrir -->
+    <div class="card shadow-sm mb-4" style="max-width: 480px">
+        <div class="card-body">
+            <h5 class="card-title">La caja está cerrada</h5>
+            <p class="text-muted">Para empezar a vender, abre la caja con el dinero que hay para dar cambio.</p>
+            <form method="post" asp-page-handler="Abrir" class="d-flex gap-2">
+                <div class="input-group">
+                    <span class="input-group-text">Fondo $</span>
+                    <input name="fondoInicial" type="number" step="0.01" min="0" class="form-control" required placeholder="500" />
+                </div>
+                <button type="submit" class="btn btn-warning text-nowrap">Abrir caja</button>
+            </form>
+        </div>
+    </div>
+}
+
+@if (corte != null)
+{
+    if (Model.Abierta != null && !Model.Abierta.EsDeHoy)
+    {
+        <div class="alert alert-warning">
+            Esta caja se abrió el <strong>@Model.Abierta.FechaApertura.ToString("dd/MM/yyyy")</strong> y no se ha cerrado.
+            Haz el corte para poder abrir la caja de hoy.
+        </div>
+    }
+
+    <div class="row g-3 mb-4">
+        <!-- Resumen -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-header d-flex justify-content-between">
+                    <span><strong>Corte #@corte.CorteId</strong> — @corte.FechaCorte.ToString("dddd dd/MM/yyyy")</span>
+                    <span class="badge @(corte.Estado == "Abierto" ? "bg-success" : "bg-secondary")">@corte.Estado</span>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr><td>Abierta a las</td><td class="text-end">@corte.FechaApertura.ToString("hh:mm tt")</td></tr>
+                        <tr><td>Número de ventas</td><td class="text-end">@corte.NumVentas</td></tr>
+                        <tr><td>Efectivo</td><td class="text-end">@corte.VentasEfectivo.ToString("C")</td></tr>
+                        <tr><td>Tarjeta</td><td class="text-end">@corte.VentasTarjeta.ToString("C")</td></tr>
+                        <tr><td>Transferencia</td><td class="text-end">@corte.VentasTransferencia.ToString("C")</td></tr>
+                        <tr class="fw-bold"><td>Total vendido</td><td class="text-end">@corte.TotalVendido.ToString("C")</td></tr>
+                        <tr><td>Fondo inicial</td><td class="text-end">@corte.FondoInicial.ToString("C")</td></tr>
+                        <tr class="table-warning fw-bold"><td>Efectivo que debe haber en caja</td><td class="text-end">@corte.EfectivoEsperado.ToString("C")</td></tr>
+                        @if (corte.EfectivoContado.HasValue)
+                        {
+                            <tr><td>Efectivo contado</td><td class="text-end">@corte.EfectivoContado.Value.ToString("C")</td></tr>
+                            <tr class="fw-bold @(corte.Diferencia < 0 ? "text-danger" : corte.Diferencia > 0 ? "text-primary" : "text-success")">
+                                <td>Diferencia</td>
+                                <td class="text-end">
+                                    @(corte.Diferencia == 0 ? "Cuadró exacto"
+                                      : corte.Diferencia > 0 ? "Sobran " + corte.Diferencia.Value.ToString("C")
+                                      : "Faltan " + (-corte.Diferencia!.Value).ToString("C"))
+                                </td>
+                            </tr>
+                        }
+                        @if (!string.IsNullOrEmpty(corte.Observaciones))
+                        {
+                            <tr><td>Observaciones</td><td class="text-end">@corte.Observaciones</td></tr>
+                        }
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cerrar -->
+        @if (Model.Abierta != null)
+        {
+            <div class="col-lg-5">
+                <div class="card shadow-sm h-100 border-warning">
+                    <div class="card-body">
+                        <h5 class="card-title">Hacer el corte</h5>
+                        <p class="text-muted small">Cuenta el efectivo que hay en la caja (incluyendo el fondo) y escríbelo aquí.</p>
+                        <form method="post" asp-page-handler="Cerrar"
+                              onsubmit="return confirm('¿Cerrar la caja? Ya no se podrá vender ni cancelar ventas de este corte.')">
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">Efectivo contado $</span>
+                                <input name="efectivoContado" type="number" step="0.01" min="0" class="form-control" required />
+                            </div>
+                            <textarea name="observaciones" maxlength="200" class="form-control mb-2" rows="2"
+                                      placeholder="Observaciones (opcional)"></textarea>
+                            <button type="submit" class="btn btn-dark w-100">Cerrar caja</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="col-lg-5">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">¿Abrir otra vez?</h5>
+                        <p class="text-muted small">Solo se permite un corte por día. Mañana podrás abrir la caja de nuevo.</p>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Ventas del corte -->
+    <h5>Ventas de este corte</h5>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th><th>Hora</th><th>Orden</th><th>Qué se vendió</th>
+                    <th>Pago</th><th class="text-end">Total</th><th>Estado</th><th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Ventas.Count == 0)
+                {
+                    <tr><td colspan="8" class="text-center text-muted py-3">Todavía no hay ventas.</td></tr>
+                }
+                @foreach (var v in Model.Ventas)
+                {
+                    <tr class="@(v.Estado == "Cancelada" ? "table-secondary text-muted text-decoration-line-through" : "")">
+                        <td>@v.VentaId</td>
+                        <td>@v.Fecha.ToString("hh:mm tt")</td>
+                        <td>@(v.NombreOrden ?? "—")</td>
+                        <td class="small">@v.Conceptos</td>
+                        <td class="small">
+                            @if (v.Tipo == "ConsumoPersonal")
+                            {
+                                <span class="badge bg-info text-dark">Consumo personal</span>
+                            }
+                            else
+                            {
+                                @v.Pagos
+                            }
+                        </td>
+                        <td class="text-end">
+                            @v.Total.ToString("C")
+                            @if (v.Descuento > 0)
+                            {
+                                <div class="small text-muted">desc. @v.Descuento.ToString("C")</div>
+                            }
+                        </td>
+                        <td>@v.Estado</td>
+                        <td class="text-end text-nowrap">
+                            <a asp-page="/Ticket/Index" asp-route-id="@v.VentaId" target="_blank"
+                               class="btn btn-sm btn-outline-secondary">Ticket</a>
+                            @if (Model.Abierta != null && v.Estado == "Pagada")
+                            {
+                                <form method="post" asp-page-handler="Cancelar" class="d-inline" onsubmit="return pedirMotivo(this, @v.VentaId)">
+                                    <input type="hidden" name="ventaId" value="@v.VentaId" />
+                                    <input type="hidden" name="motivo" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Cancelar</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        // Pide el motivo antes de cancelar una venta
+        function pedirMotivo(form, ventaId) {
+            const motivo = prompt('¿Por qué se cancela la venta #' + ventaId + '?', 'El cliente se arrepintió');
+            if (motivo === null) return false;
+            form.querySelector('input[name="motivo"]').value = motivo;
+            return true;
+        }
+    </script>
+}

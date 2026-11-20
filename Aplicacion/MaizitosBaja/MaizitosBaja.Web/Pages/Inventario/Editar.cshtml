@@ -1,0 +1,13 @@
+@page "{id:int}"
+@model MaizitosBaja.Web.Pages.Inventario.EditarModel
+@{
+    ViewData["Title"] = "Editar artículo";
+}
+
+<h2 class="mb-3">Editar artículo</h2>
+
+<partial name="_FormularioArticulo" model="Model" />
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

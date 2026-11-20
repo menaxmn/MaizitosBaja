@@ -1,0 +1,404 @@
+@page
+@model MaizitosBaja.Web.Pages.Movimientos.IndexModel
+@{
+    ViewData["Title"] = "Movimientos";
+
+    var titulos = new Dictionary<string, string>
+    {
+        ["entrada"] = "📥 Entrada",
+        ["salida"] = "📤 Uso / Merma",
+        ["ajuste"] = "🔢 Ajuste por conteo",
+        ["historial"] = "📋 Historial"
+    };
+
+    // Opciones de artículo agrupadas por tipo y categoría (se usa en varios <select>).
+    // Es async porque <option> es un TagHelper y Razor lo exige.
+    async Task OpcionesArticulo(List<MaizitosBaja.Entidades.Articulo> lista, int? seleccionado)
+    {
+        foreach (var g in lista.GroupBy(a => a.Tipo + " · " + a.Categoria))
+        {
+            <optgroup label="@g.Key">
+                @foreach (var a in g)
+                {
+                    <option value="@a.ArticuloId" data-stock="@a.Stock" data-unidad="@a.Unidad"
+                            selected="@(a.ArticuloId == seleccionado)">@a.NombreCompleto (hay @a.Stock)</option>
+                }
+            </optgroup>
+        }
+    }
+
+    string ColorTipo(string tipo) => tipo switch
+    {
+        "Entrada" or "Inicial" or "Cancelacion" => "bg-success",
+        "Venta" => "bg-primary",
+        "ConsumoPersonal" => "bg-info text-dark",
+        "Uso" => "bg-secondary",
+        "Merma" => "bg-danger",
+        "Ajuste" => "bg-warning text-dark",
+        _ => "bg-light text-dark"
+    };
+}
+
+<h2 class="mb-3">Movimientos de inventario</h2>
+
+@if (TempData["Mensaje"] is string mensaje)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @mensaje <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] is string errorTemp)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @errorTemp <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+
+<!-- Pestañas -->
+<ul class="nav nav-tabs mb-3">
+    @foreach (var p in MaizitosBaja.Web.Pages.Movimientos.IndexModel.Pestanas)
+    {
+        <li class="nav-item">
+            <a class="nav-link @(Model.Pestana == p ? "active fw-semibold" : "text-dark")"
+               asp-page="./Index" asp-route-pestana="@p">@titulos[p]</a>
+        </li>
+    }
+</ul>
+
+@if (Model.Pestana == "entrada")
+{
+    <!-- ================= ENTRADA ================= -->
+    <form method="post" asp-page-handler="Entrada" id="formEntrada" class="card shadow-sm">
+        <div class="card-body">
+            <p class="text-muted">Registra la mercancía que llegó. Puedes agregar varios artículos de la misma compra.</p>
+
+            <div class="row g-2 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Proveedor</label>
+                    <div class="input-group">
+                        <select name="proveedorId" class="form-select">
+                            <option value="">(Sin proveedor)</option>
+                            @foreach (var p in Model.Proveedores)
+                            {
+                                <option value="@p.ProveedorId" selected="@(p.ProveedorId == Model.ProveedorPrevio)">@p.Nombre</option>
+                            }
+                        </select>
+                        <a asp-page="/Proveedores/Crear" asp-route-volver="movimientos" class="btn btn-outline-secondary" title="Agregar proveedor">+ Nuevo</a>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Observaciones</label>
+                    <input name="observaciones" value="@Model.ObservacionesPrevias" maxlength="200" class="form-control"
+                           placeholder="Ej. Pedido del lunes (opcional)" />
+                </div>
+            </div>
+
+            <!-- Agregar renglón -->
+            <div class="row g-2 align-items-end p-2 bg-light rounded mb-3">
+                <div class="col-md-7">
+                    <label class="form-label small mb-0">Artículo</label>
+                    <select id="selArticulo" class="form-select">
+                        <option value="">-- Selecciona --</option>
+                        @{ await OpcionesArticulo(Model.Articulos, Model.ArticuloId); }
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small mb-0">Cantidad que llegó</label>
+                    <input id="txtCantidad" type="number" min="1" class="form-control" />
+                </div>
+                <div class="col-6 col-md-2">
+                    <button type="button" id="btnAgregar" class="btn btn-dark w-100">Agregar</button>
+                </div>
+            </div>
+
+            <table class="table table-sm align-middle">
+                <thead class="table-light">
+                    <tr><th>Artículo</th><th class="text-end">Hay</th><th class="text-end" style="width: 130px">Llegó</th><th class="text-end">Quedará</th><th></th></tr>
+                </thead>
+                <tbody id="renglonesEntrada"></tbody>
+            </table>
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <span id="resumenEntrada" class="text-muted">Sin artículos</span>
+            <button type="submit" id="btnGuardarEntrada" class="btn btn-warning" disabled>Guardar entrada</button>
+        </div>
+    </form>
+}
+else if (Model.Pestana == "salida")
+{
+    <!-- ================= SALIDA ================= -->
+    <form method="post" asp-page-handler="Salida" class="card shadow-sm" style="max-width: 640px"
+          onsubmit="return confirm('¿Registrar la salida? Se descontará del inventario.')">
+        <div class="card-body">
+            <p class="text-muted">Lo que sale del inventario sin venderse.</p>
+
+            <div class="mb-3">
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="tipoSalida" id="rdUso" value="Uso" checked />
+                    <label class="form-check-label" for="rdUso"><b>Uso</b> <small class="text-muted">(ej. abrí un paquete de vasos)</small></label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="tipoSalida" id="rdMerma" value="Merma" />
+                    <label class="form-check-label" for="rdMerma"><b>Merma</b> <small class="text-muted">(se echó a perder)</small></label>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Artículo</label>
+                <select name="articuloId" class="form-select" required>
+                    <option value="">-- Selecciona --</option>
+                    @{ await OpcionesArticulo(Model.Articulos, Model.ArticuloId); }
+                </select>
+            </div>
+            <div class="row g-2">
+                <div class="col-4">
+                    <label class="form-label">Cantidad</label>
+                    <input name="cantidad" type="number" min="1" value="1" class="form-control" required />
+                </div>
+                <div class="col-8">
+                    <label class="form-label">Motivo <small class="text-muted">(obligatorio en merma)</small></label>
+                    <input name="motivo" maxlength="200" class="form-control" placeholder="Ej. se derritieron" />
+                </div>
+            </div>
+        </div>
+        <div class="card-footer text-end">
+            <button type="submit" class="btn btn-warning">Registrar salida</button>
+        </div>
+    </form>
+}
+else if (Model.Pestana == "ajuste")
+{
+    <!-- ================= AJUSTE ================= -->
+    <form method="post" asp-page-handler="Ajuste" class="card shadow-sm" style="max-width: 640px">
+        <div class="card-body">
+            <p class="text-muted">Cuando cuentes físicamente y no cuadre, escribe cuántos hay en realidad.</p>
+
+            <div class="mb-3">
+                <label class="form-label">Artículo</label>
+                <select name="articuloId" id="selAjuste" class="form-select" required>
+                    <option value="">-- Selecciona --</option>
+                    @{ await OpcionesArticulo(Model.Articulos, Model.ArticuloId); }
+                </select>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-4">
+                    <label class="form-label">En el sistema</label>
+                    <input id="txtSistema" class="form-control" disabled />
+                </div>
+                <div class="col-4">
+                    <label class="form-label">Conté</label>
+                    <input name="conteo" id="txtConteo" type="number" min="0" class="form-control" required />
+                </div>
+                <div class="col-4 d-flex align-items-end">
+                    <div id="txtDiferencia" class="fw-bold pb-2"></div>
+                </div>
+            </div>
+            <div>
+                <label class="form-label">Motivo</label>
+                <input name="motivo" maxlength="200" class="form-control" required placeholder="Ej. conteo semanal" />
+            </div>
+        </div>
+        <div class="card-footer text-end">
+            <button type="submit" class="btn btn-warning">Registrar ajuste</button>
+        </div>
+    </form>
+}
+else
+{
+    <!-- ================= HISTORIAL ================= -->
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <input type="hidden" name="pestana" value="historial" />
+        <div class="col-6 col-md-2">
+            <label class="form-label small mb-0">Desde</label>
+            <input name="desde" type="date" value="@(Model.Desde?.ToString("yyyy-MM-dd"))" class="form-control" />
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small mb-0">Hasta</label>
+            <input name="hasta" type="date" value="@(Model.Hasta?.ToString("yyyy-MM-dd"))" class="form-control" />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small mb-0">Tipo</label>
+            <select name="tipo" class="form-select">
+                <option value="">Todos</option>
+                @foreach (var t in MaizitosBaja.Web.Pages.Movimientos.IndexModel.NombresTipo)
+                {
+                    <option value="@t.Key" selected="@(Model.Tipo == t.Key)">@t.Value</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small mb-0">Artículo</label>
+            <select name="articuloId" class="form-select">
+                <option value="">Todos</option>
+                @{ await OpcionesArticulo(Model.TodosLosArticulos, Model.ArticuloId); }
+            </select>
+        </div>
+        <div class="col-md-2 d-flex gap-1">
+            <button type="submit" class="btn btn-dark flex-fill">Filtrar</button>
+            <a asp-page="./Index" asp-route-pestana="historial" class="btn btn-outline-secondary" title="Quitar filtros">✕</a>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Fecha</th><th>Artículo</th><th>Tipo</th>
+                    <th class="text-end">Cantidad</th><th class="text-center">Antes → Después</th>
+                    <th>Proveedor / Venta</th><th>Observaciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Historial.Count == 0)
+                {
+                    <tr><td colspan="7" class="text-center text-muted py-4">No hay movimientos con esos filtros.</td></tr>
+                }
+                @foreach (var m in Model.Historial)
+                {
+                    <tr>
+                        <td class="text-nowrap small">@m.Fecha.ToString("dd/MM/yy hh:mm tt")</td>
+                        <td>@m.Articulo <small class="text-muted">· @m.Categoria</small></td>
+                        <td><span class="badge @ColorTipo(m.Tipo)">@MaizitosBaja.Web.Pages.Movimientos.IndexModel.NombresTipo.GetValueOrDefault(m.Tipo, m.Tipo)</span></td>
+                        <td class="text-end fw-semibold @(m.Cantidad > 0 ? "text-success" : "text-danger")">@m.Cantidad.ToString("+#;-#")</td>
+                        <td class="text-center text-nowrap">
+                            @(m.StockAnterior.HasValue ? m.StockAnterior + " → " + m.StockNuevo : "—")
+                        </td>
+                        <td class="small">
+                            @if (m.VentaId.HasValue)
+                            {
+                                <a asp-page="/Ticket/Index" asp-route-id="@m.VentaId" target="_blank">Venta #@m.VentaId</a>
+                            }
+                            else
+                            {
+                                @(m.Proveedor ?? "")
+                            }
+                        </td>
+                        <td class="small text-muted">@m.Observaciones</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.Historial.Count == 500)
+    {
+        <p class="small text-muted">Se muestran los 500 movimientos más recientes. Usa los filtros para ver otros.</p>
+    }
+}
+
+@section Scripts {
+<script>
+(function () {
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s ?? '').replace(/[&<>"']/g,
+        ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+    // ---------- Entrada: lista de artículos ----------
+    if ($('formEntrada')) {
+        const sel = $('selArticulo');
+        let renglones = [];   // { articuloId, nombre, stock, cantidad }
+
+        function datosArticulo(id) {
+            const op = sel.querySelector(`option[value="${id}"]`);
+            if (!op) return null;
+            return { nombre: op.textContent.replace(/\s*\(hay .*\)$/, ''), stock: Number(op.dataset.stock) };
+        }
+
+        function agregar(articuloId, cantidad) {
+            const d = datosArticulo(articuloId);
+            if (!d || !(cantidad > 0)) return;
+            const existente = renglones.find(r => r.articuloId === articuloId);
+            if (existente) existente.cantidad += cantidad;
+            else renglones.push({ articuloId, nombre: d.nombre, stock: d.stock, cantidad });
+            pintar();
+        }
+
+        function pintar() {
+            $('renglonesEntrada').innerHTML = renglones.map((r, i) => `
+                <tr>
+                    <td>${esc(r.nombre)}
+                        <input type="hidden" name="renglones[${i}].ArticuloId" value="${r.articuloId}" /></td>
+                    <td class="text-end text-muted">${r.stock}</td>
+                    <td class="text-end">
+                        <input type="number" min="1" class="form-control form-control-sm text-end" data-idx="${i}"
+                               name="renglones[${i}].Cantidad" value="${r.cantidad}" /></td>
+                    <td class="text-end fw-semibold text-success">${r.stock + r.cantidad}</td>
+                    <td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" data-quitar="${i}">Quitar</button></td>
+                </tr>`).join('') || '<tr><td colspan="5" class="text-center text-muted py-3">Agrega los artículos que llegaron.</td></tr>';
+
+            const piezas = renglones.reduce((s, r) => s + r.cantidad, 0);
+            $('resumenEntrada').textContent = renglones.length
+                ? `${renglones.length} artículo(s), ${piezas} en total`
+                : 'Sin artículos';
+            $('btnGuardarEntrada').disabled = renglones.length === 0;
+        }
+
+        $('btnAgregar').addEventListener('click', () => {
+            const id = Number(sel.value);
+            const cant = Number($('txtCantidad').value);
+            if (!id) { alert('Selecciona un artículo.'); sel.focus(); return; }
+            if (!(cant > 0)) { alert('Escribe cuántos llegaron.'); $('txtCantidad').focus(); return; }
+            agregar(id, cant);
+            sel.value = '';
+            $('txtCantidad').value = '';
+            sel.focus();
+        });
+
+        // Enter en la cantidad = Agregar (sin enviar el formulario)
+        $('txtCantidad').addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); $('btnAgregar').click(); }
+        });
+
+        $('renglonesEntrada').addEventListener('input', e => {
+            const i = e.target.dataset.idx;
+            if (i === undefined) return;
+            renglones[Number(i)].cantidad = Math.max(Number(e.target.value) || 0, 0);
+            const fila = e.target.closest('tr');
+            fila.children[3].textContent = renglones[Number(i)].stock + renglones[Number(i)].cantidad;
+        });
+        $('renglonesEntrada').addEventListener('change', pintar);
+
+        $('renglonesEntrada').addEventListener('click', e => {
+            const i = e.target.dataset.quitar;
+            if (i === undefined) return;
+            renglones.splice(Number(i), 1);
+            pintar();
+        });
+
+        $('formEntrada').addEventListener('submit', e => {
+            if (!confirm('¿Guardar la entrada? Se sumará al inventario.')) e.preventDefault();
+        });
+
+        // Si hubo error al guardar, se recupera lo capturado
+        const previos = @Html.Raw(Model.RenglonesJson);
+        previos.forEach(r => agregar(r.articuloId, r.cantidad));
+
+        // Si viene un artículo desde Inventario, listo para escribir la cantidad
+        if (sel.value) $('txtCantidad').focus();
+        pintar();
+    }
+
+    // ---------- Ajuste: diferencia en vivo ----------
+    if ($('selAjuste')) {
+        const sel = $('selAjuste');
+        function actualizar() {
+            const op = sel.selectedOptions[0];
+            const stock = op && op.value ? Number(op.dataset.stock) : null;
+            $('txtSistema').value = stock ?? '';
+            const conteo = $('txtConteo').value;
+            const div = $('txtDiferencia');
+            if (stock === null || conteo === '') { div.textContent = ''; return; }
+            const dif = Number(conteo) - stock;
+            div.className = 'fw-bold pb-2 ' + (dif === 0 ? 'text-success' : dif > 0 ? 'text-primary' : 'text-danger');
+            div.textContent = dif === 0 ? 'Cuadra ✔' : (dif > 0 ? 'Sobran ' + dif : 'Faltan ' + (-dif));
+        }
+        sel.addEventListener('change', actualizar);
+        $('txtConteo').addEventListener('input', actualizar);
+        actualizar();
+    }
+})();
+</script>
+}

@@ -1,0 +1,13 @@
+@page
+@model MaizitosBaja.Web.Pages.Productos.CrearModel
+@{
+    ViewData["Title"] = "Nuevo platillo";
+}
+
+<h2 class="mb-3">Nuevo platillo</h2>
+
+<partial name="_FormularioProducto" for="Input" />
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

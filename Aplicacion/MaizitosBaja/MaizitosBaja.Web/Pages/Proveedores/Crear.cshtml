@@ -1,0 +1,13 @@
+@page
+@model MaizitosBaja.Web.Pages.Proveedores.CrearModel
+@{
+    ViewData["Title"] = "Nuevo proveedor";
+}
+
+<h2 class="mb-3">Nuevo proveedor</h2>
+
+<partial name="_FormularioProveedor" for="Input" />
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

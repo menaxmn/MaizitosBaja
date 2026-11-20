@@ -1,0 +1,158 @@
+@page
+@model MaizitosBaja.Web.Pages.Inventario.IndexModel
+@{
+    ViewData["Title"] = "Inventario";
+    string[] tipos = { "Comida", "Bebida", "Material" };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="m-0">Inventario</h2>
+    <a asp-page="./Crear" class="btn btn-warning">+ Nuevo artículo</a>
+</div>
+
+@if (TempData["Mensaje"] is string mensaje)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @mensaje
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] is string errorTemp)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @errorTemp
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+
+<!-- Resumen -->
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card text-center shadow-sm">
+            <div class="card-body">
+                <div class="fs-3 fw-bold">@Model.TotalActivos</div>
+                <div class="text-muted">Artículos activos</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center shadow-sm border-warning">
+            <div class="card-body">
+                <div class="fs-3 fw-bold text-warning">@Model.StockBajo</div>
+                <div class="text-muted">Con stock bajo</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center shadow-sm border-danger">
+            <div class="card-body">
+                <div class="fs-3 fw-bold text-danger">@Model.Agotados</div>
+                <div class="text-muted">Agotados</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<form method="get" class="row g-2 align-items-center mb-3">
+    <div class="col-auto">
+        <div class="btn-group" role="group">
+            <a asp-page="./Index" asp-route-Buscar="@Model.Buscar" asp-route-VerInactivos="@Model.VerInactivos"
+               class="btn @(string.IsNullOrEmpty(Model.Tipo) ? "btn-dark" : "btn-outline-dark")">Todo</a>
+            @foreach (var t in tipos)
+            {
+                <a asp-page="./Index" asp-route-Tipo="@t" asp-route-Buscar="@Model.Buscar" asp-route-VerInactivos="@Model.VerInactivos"
+                   class="btn @(Model.Tipo == t ? "btn-dark" : "btn-outline-dark")">@t</a>
+            }
+        </div>
+    </div>
+    <input type="hidden" name="Tipo" value="@Model.Tipo" />
+    <div class="col">
+        <input name="Buscar" value="@Model.Buscar" class="form-control" placeholder="Buscar por nombre o categoría..." />
+    </div>
+    <div class="col-auto form-check ms-2">
+        <input class="form-check-input" type="checkbox" name="VerInactivos" value="true" id="chkInactivos"
+               checked="@Model.VerInactivos" onchange="this.form.submit()" />
+        <label class="form-check-label" for="chkInactivos">Ver desactivados</label>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-outline-secondary">Buscar</button>
+    </div>
+</form>
+
+<!-- Tabla -->
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Tipo</th>
+                <th>Categoría</th>
+                <th>Artículo</th>
+                <th class="text-end">Existencia</th>
+                <th class="text-end">Mínimo</th>
+                <th class="text-end">Precio suelto</th>
+                <th>Proveedor</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Articulos.Count == 0)
+            {
+                <tr><td colspan="8" class="text-center text-muted py-4">No hay artículos con esos filtros.</td></tr>
+            }
+            @foreach (var a in Model.Articulos)
+            {
+                <tr class="@(a.Activo ? "" : "table-secondary text-muted")">
+                    <td>@a.Tipo</td>
+                    <td>@a.Categoria</td>
+                    <td>
+                        @a.NombreCompleto
+                        @if (!a.Activo)
+                        {
+                            <span class="badge bg-secondary ms-1">Desactivado</span>
+                        }
+                    </td>
+                    <td class="text-end">
+                        @a.Stock <small class="text-muted">@(a.Unidad == "Paquete" ? "paq." : "pza.")</small>
+                        @if (a.Activo && a.EstadoStock == "Agotado")
+                        {
+                            <span class="badge bg-danger ms-1">Agotado</span>
+                        }
+                        else if (a.Activo && a.EstadoStock == "Stock bajo")
+                        {
+                            <span class="badge bg-warning text-dark ms-1">Bajo</span>
+                        }
+                    </td>
+                    <td class="text-end">@a.StockMinimo</td>
+                    <td class="text-end">@(a.PrecioSuelto.HasValue ? a.PrecioSuelto.Value.ToString("C") : "—")</td>
+                    <td>@(a.Proveedor ?? "—")</td>
+                    <td class="text-nowrap text-end">
+                        <a asp-page="./Editar" asp-route-id="@a.ArticuloId" class="btn btn-sm btn-outline-primary">Editar</a>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown"
+                                    data-bs-popper-config='{"strategy":"fixed"}'>Más</button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" asp-page="/Movimientos/Index" asp-route-pestana="entrada" asp-route-articuloId="@a.ArticuloId">📥 Registrar entrada</a></li>
+                                <li><a class="dropdown-item" asp-page="/Movimientos/Index" asp-route-pestana="salida" asp-route-articuloId="@a.ArticuloId">📤 Uso / merma</a></li>
+                                <li><a class="dropdown-item" asp-page="/Movimientos/Index" asp-route-pestana="ajuste" asp-route-articuloId="@a.ArticuloId">🔢 Ajustar conteo</a></li>
+                                <li><hr class="dropdown-divider" /></li>
+                                <li><a class="dropdown-item" asp-page="/Movimientos/Index" asp-route-pestana="historial" asp-route-articuloId="@a.ArticuloId">📋 Ver movimientos</a></li>
+                            </ul>
+                        </div>
+                        <form method="post" asp-page-handler="CambiarEstado" asp-route-id="@a.ArticuloId"
+                              asp-route-Tipo="@Model.Tipo" asp-route-Buscar="@Model.Buscar" asp-route-VerInactivos="@Model.VerInactivos"
+                              class="d-inline">
+                            <button type="submit" class="btn btn-sm @(a.Activo ? "btn-outline-danger" : "btn-outline-success")">
+                                @(a.Activo ? "Desactivar" : "Activar")
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

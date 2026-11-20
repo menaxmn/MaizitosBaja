@@ -1,0 +1,30 @@
+@model MaizitosBaja.Web.Pages.Proveedores.ProveedorInput
+
+<form method="post" class="card shadow-sm" style="max-width: 560px">
+    <div class="card-body">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+        <input type="hidden" asp-for="ProveedorId" />
+
+        <div class="mb-3">
+            <label asp-for="Nombre" class="form-label"></label>
+            <input asp-for="Nombre" class="form-control" placeholder="Ej. Don Pepe (sodas)" />
+            <span asp-validation-for="Nombre" class="text-danger small"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Telefono" class="form-label"></label>
+            <input asp-for="Telefono" class="form-control" placeholder="Opcional" />
+            <span asp-validation-for="Telefono" class="text-danger small"></span>
+        </div>
+        <div class="mb-1">
+            <label asp-for="Correo" class="form-label"></label>
+            <input asp-for="Correo" class="form-control" placeholder="Opcional" />
+            <span asp-validation-for="Correo" class="text-danger small"></span>
+        </div>
+    </div>
+    <div class="card-footer d-flex gap-2 justify-content-end">
+        <a asp-page="./Index" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-warning">
+            @(Model.ProveedorId == 0 ? "Agregar proveedor" : "Guardar cambios")
+        </button>
+    </div>
+</form>

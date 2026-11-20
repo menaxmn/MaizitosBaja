@@ -1,0 +1,710 @@
+@page
+@model MaizitosBaja.Web.Pages.Vender.IndexModel
+@{
+    ViewData["Title"] = "Vender";
+}
+
+@Html.AntiForgeryToken()
+
+@if (TempData["Mensaje"] is string mensaje)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @mensaje <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+@if (Model.Caja == null)
+{
+    <div class="alert alert-warning d-flex justify-content-between align-items-center">
+        <span>La caja está cerrada. Ábrela para poder cobrar.</span>
+        <a asp-page="/Caja/Index" class="btn btn-sm btn-warning">Abrir caja</a>
+    </div>
+}
+else if (!Model.Caja.EsDeHoy)
+{
+    <div class="alert alert-warning d-flex justify-content-between align-items-center">
+        <span>La caja abierta es del @Model.Caja.FechaApertura.ToString("dd/MM/yyyy"). Las ventas se están sumando a ese día.</span>
+        <a asp-page="/Caja/Index" class="btn btn-sm btn-warning">Hacer el corte</a>
+    </div>
+}
+
+<div class="row g-3">
+    <!-- ===== Catálogo ===== -->
+    <div class="col-lg-7 col-xl-8">
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-dark" data-vista="menu">Menú</button>
+                <button type="button" class="btn btn-outline-dark" data-vista="sueltos">Sueltos</button>
+            </div>
+            <input id="buscar" class="form-control flex-grow-1 w-auto" placeholder="Buscar..." autocomplete="off" />
+        </div>
+        <div id="catalogo" class="row g-2"></div>
+    </div>
+
+    <!-- ===== Orden ===== -->
+    <div class="col-lg-5 col-xl-4">
+        <div class="card shadow-sm sticky-top" style="top: 1rem">
+            <div class="card-header bg-warning-subtle">
+                <input id="nombreOrden" class="form-control" maxlength="50" placeholder="Nombre de la orden (ej. Ana)" autocomplete="off" />
+            </div>
+            <div class="card-body p-2" style="max-height: 45vh; overflow-y: auto">
+                <div id="renglones"></div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between">
+                    <span>Subtotal</span><span id="txtSubtotal">$0.00</span>
+                </div>
+
+                <div class="form-check form-switch my-2">
+                    <input class="form-check-input" type="checkbox" id="chkConsumo" />
+                    <label class="form-check-label" for="chkConsumo">Consumo personal (no se cobra)</label>
+                </div>
+
+                <div id="grupoDescuento" class="row g-1 mb-2">
+                    <div class="col-5">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">Desc. $</span>
+                            <input id="descuento" type="number" min="0" step="0.01" class="form-control" placeholder="0" />
+                        </div>
+                    </div>
+                    <div class="col-7">
+                        <input id="motivoDescuento" class="form-control form-control-sm" maxlength="100"
+                               placeholder="Motivo (Familiar, Amigo...)" list="motivos" />
+                        <datalist id="motivos">
+                            <option value="Familiar"></option>
+                            <option value="Amigo"></option>
+                        </datalist>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between fs-4 fw-bold">
+                    <span>Total</span><span id="txtTotal">$0.00</span>
+                </div>
+
+                <div class="d-flex gap-2 mt-2">
+                    <button type="button" id="btnVaciar" class="btn btn-outline-secondary">Vaciar</button>
+                    <button type="button" id="btnCobrar" class="btn btn-warning btn-lg flex-grow-1" disabled>Cobrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<datalist id="sugerenciasNota">
+    <option value="Sin mayonesa"></option>
+    <option value="Sin mantequilla"></option>
+    <option value="Sin queso"></option>
+    <option value="Sin chile"></option>
+    <option value="Sin limón"></option>
+    <option value="Poco chile"></option>
+    <option value="Para llevar"></option>
+</datalist>
+
+<!-- ===== Modal: qué eligió el cliente ===== -->
+<div class="modal fade" id="modalElegir" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">¿Qué eligió para <span id="elegirPlatillo"></span>?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted">Es lo que sale del inventario para este renglón (si pidió 2, elige lo de los 2).</p>
+                <div id="listaElegibles"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="btnGuardarElegidos" class="btn btn-warning">Listo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Modal: cobrar ===== -->
+<div class="modal fade" id="modalCobrar" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cobrar <span id="cobrarTotal" class="fw-bold"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex gap-2 mb-3">
+                    <button type="button" class="btn btn-outline-success flex-fill" data-todo="Efectivo">Todo efectivo</button>
+                    <button type="button" class="btn btn-outline-primary flex-fill" data-todo="Tarjeta">Todo tarjeta</button>
+                    <button type="button" class="btn btn-outline-info flex-fill" data-todo="Transferencia">Todo transf.</button>
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-4">
+                        <label class="form-label small mb-0">Efectivo</label>
+                        <input id="pagoEfectivo" type="number" min="0" step="0.01" class="form-control pago" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label small mb-0">Tarjeta</label>
+                        <input id="pagoTarjeta" type="number" min="0" step="0.01" class="form-control pago" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label small mb-0">Transferencia</label>
+                        <input id="pagoTransferencia" type="number" min="0" step="0.01" class="form-control pago" />
+                    </div>
+                </div>
+
+                <div id="grupoRecibido" class="mb-3">
+                    <label class="form-label small mb-0">¿Con cuánto pagó en efectivo?</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input id="recibido" type="number" min="0" step="0.01" class="form-control" placeholder="Exacto" />
+                    </div>
+                    <div class="d-flex gap-1 mt-1">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-billete="exacto">Exacto</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-billete="100">$100</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-billete="200">$200</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-billete="500">$500</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-billete="1000">$1000</button>
+                    </div>
+                </div>
+
+                <div id="estadoPago" class="alert py-2 mb-0"></div>
+                <div id="errorCobrar" class="alert alert-danger py-2 mt-2 mb-0 d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="btnConfirmar" class="btn btn-warning btn-lg w-100">Confirmar venta</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Modal: venta lista ===== -->
+<div class="modal fade" id="modalListo" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-center">
+            <div class="modal-body py-4">
+                <div class="fs-1">✅</div>
+                <div id="listoMensaje" class="fs-5"></div>
+                <div id="listoCambio" class="display-5 fw-bold text-success mt-2"></div>
+                <div class="form-check d-inline-block mt-3">
+                    <input class="form-check-input" type="checkbox" id="chkAutoTicket" checked />
+                    <label class="form-check-label small" for="chkAutoTicket">Imprimir el ticket al cobrar</label>
+                </div>
+            </div>
+            <div class="modal-footer flex-nowrap">
+                <button type="button" id="btnTicket" class="btn btn-outline-dark btn-lg">🖨️ Ticket</button>
+                <button type="button" class="btn btn-warning btn-lg flex-grow-1" data-bs-dismiss="modal">Nueva venta</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Aquí se carga el ticket para imprimirlo sin abrir otra ventana -->
+<iframe id="marcoTicket" title="Ticket" style="position: fixed; left: -10000px; top: 0; width: 400px; height: 800px; border: 0"></iframe>
+
+<style>
+    .tarjeta { min-height: 72px; }
+    .tarjeta:hover:not(:disabled) { background-color: #fff3cd; }
+</style>
+
+@section Scripts {
+<script>
+(function () {
+    // ---------- Datos que vienen del servidor ----------
+    const datos = @Html.Raw(Model.CatalogoJson);
+    const cajaAbierta = @(Model.Caja != null ? "true" : "false");
+
+    // ---------- Estado ----------
+    let vista = 'menu';
+    let orden = [];          // renglones: { tipo, id, nombre, precio (centavos), cantidad, nota, verNota, elegidos: [{id, nombre, cantidad}] }
+    let idxElegir = null;    // renglón que se está editando en el modal
+    let temporalElegidos = {};
+
+    // Todo el dinero se maneja en centavos para no tener errores de decimales
+    const centavos = v => Math.round(Number(v || 0) * 100);
+    const pesos = c => (c / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+    const esc = s => String(s ?? '').replace(/[&<>"']/g,
+        ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+    const $ = id => document.getElementById(id);
+    const modalElegir = new bootstrap.Modal($('modalElegir'));
+    const modalCobrar = new bootstrap.Modal($('modalCobrar'));
+    const modalListo = new bootstrap.Modal($('modalListo'));
+
+    // ---------- Platillos por tamaño ----------
+    // Los platillos que terminan en chico / mediano / grande se juntan en una
+    // sola tarjeta (ej. "Vaso de elote") y el tamaño se elige en la orden.
+    const ordenTamano = { chic: 0, median: 1, grand: 2 };
+    const grupos = {};          // "Vaso de elote" -> [{ id, nombre, tamano, precio }]
+    datos.menu.forEach(p => {
+        const m = p.nombre.match(/^(.+?)\s+(chic[oa]|median[oa]|grande)$/i);
+        if (!m) return;
+        (grupos[m[1]] ??= []).push({ id: p.id, nombre: p.nombre, tamano: m[2], precio: p.precio });
+    });
+    for (const base of Object.keys(grupos)) {
+        if (grupos[base].length < 2) { delete grupos[base]; continue; }   // un solo tamaño: se queda normal
+        grupos[base].sort((a, b) =>
+            ordenTamano[a.tamano.toLowerCase().slice(0, -1).replace('grand', 'grand')] -
+            ordenTamano[b.tamano.toLowerCase().slice(0, -1).replace('grand', 'grand')]);
+    }
+    const enGrupo = new Set(Object.values(grupos).flat().map(o => o.id));
+    const capitalizar = t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+
+    // Cuánto de un artículo ya está apartado en la orden (suelto + elegido)
+    function apartado(articuloId, excluirIdx) {
+        let total = 0;
+        orden.forEach((l, i) => {
+            if (l.tipo === 'articulo' && l.id === articuloId) total += l.cantidad;
+            if (i !== excluirIdx)
+                l.elegidos.forEach(e => { if (e.id === articuloId) total += e.cantidad; });
+        });
+        return total;
+    }
+
+    // ---------- Catálogo ----------
+    function pintarCatalogo() {
+        const q = $('buscar').value.trim().toLowerCase();
+        let html = '';
+
+        if (vista === 'menu') {
+            // Tarjetas: platillos normales + una por cada grupo de tamaños, en orden alfabético
+            const tarjetas = [
+                ...datos.menu.filter(p => !enGrupo.has(p.id)).map(p => ({ tipo: 'producto', p })),
+                ...Object.keys(grupos).map(base => ({ tipo: 'grupo', base }))
+            ].sort((a, b) => (a.p?.nombre ?? a.base).localeCompare(b.p?.nombre ?? b.base, 'es'));
+
+            tarjetas
+                .filter(t => (t.p?.nombre ?? t.base).toLowerCase().includes(q))
+                .forEach(t => {
+                    if (t.tipo === 'grupo') {
+                        const ops = grupos[t.base];
+                        html += `<div class="col-6 col-md-4 col-xl-3">
+                            <button type="button" class="btn btn-light border w-100 h-100 text-start p-2 tarjeta"
+                                    data-tipo="grupo" data-grupo="${esc(t.base)}">
+                                <div class="fw-semibold">${esc(t.base)}</div>
+                                <div class="text-success">${pesos(centavos(ops[0].precio))} – ${pesos(centavos(ops[ops.length - 1].precio))}</div>
+                                <small class="text-muted">${ops.map(o => capitalizar(o.tamano)).join(' · ')}</small>
+                            </button></div>`;
+                        return;
+                    }
+                    const p = t.p;
+                    html += `<div class="col-6 col-md-4 col-xl-3">
+                        <button type="button" class="btn btn-light border w-100 h-100 text-start p-2 tarjeta"
+                                data-tipo="producto" data-id="${p.id}" title="${esc(p.descripcion)}">
+                            <div class="fw-semibold">${esc(p.nombre)}</div>
+                            <div class="text-success">${pesos(centavos(p.precio))}</div>
+                        </button></div>`;
+                });
+        } else {
+            const grupos = {};
+            datos.sueltos
+                .filter(a => (a.nombre + ' ' + a.categoria).toLowerCase().includes(q))
+                .forEach(a => (grupos[a.categoria] ??= []).push(a));
+
+            for (const [categoria, lista] of Object.entries(grupos)) {
+                html += `<div class="col-12 mt-2"><h6 class="text-muted mb-0">${esc(categoria)}</h6></div>`;
+                lista.forEach(a => {
+                    const quedan = a.stock - apartado(a.id, null);
+                    html += `<div class="col-6 col-md-4 col-xl-3">
+                        <button type="button" class="btn btn-light border w-100 h-100 text-start p-2 tarjeta"
+                                data-tipo="articulo" data-id="${a.id}" ${quedan <= 0 ? 'disabled' : ''}>
+                            <div class="fw-semibold">${esc(a.nombre)}</div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-success">${pesos(centavos(a.precio))}</span>
+                                <small class="${quedan <= 0 ? 'text-danger' : 'text-muted'}">${quedan <= 0 ? 'Agotado' : 'Quedan ' + quedan}</small>
+                            </div>
+                        </button></div>`;
+                });
+            }
+        }
+
+        $('catalogo').innerHTML = html || '<p class="text-muted">No hay resultados.</p>';
+    }
+
+    $('catalogo').addEventListener('click', e => {
+        const btn = e.target.closest('button[data-tipo]');
+        if (!btn) return;
+        if (btn.dataset.tipo === 'grupo') agregarGrupo(btn.dataset.grupo);
+        else agregar(btn.dataset.tipo, Number(btn.dataset.id));
+    });
+
+    document.querySelectorAll('[data-vista]').forEach(btn => btn.addEventListener('click', () => {
+        vista = btn.dataset.vista;
+        document.querySelectorAll('[data-vista]').forEach(b => {
+            b.classList.toggle('btn-dark', b === btn);
+            b.classList.toggle('btn-outline-dark', b !== btn);
+        });
+        pintarCatalogo();
+    }));
+
+    $('buscar').addEventListener('input', pintarCatalogo);
+
+    // ---------- Orden ----------
+    function agregar(tipo, id) {
+        // Se suma al renglón que ya existe, salvo que ese tenga nota
+        // (ej. 2 elotes y uno "sin mayonesa" van en renglones separados)
+        const existente = orden.find(l => l.tipo === tipo && l.id === id && !l.nota);
+        if (existente) {
+            existente.cantidad++;
+        } else {
+            const origen = tipo === 'producto'
+                ? datos.menu.find(p => p.id === id)
+                : datos.sueltos.find(a => a.id === id);
+            orden.push({ tipo, id, nombre: origen.nombre, precio: centavos(origen.precio), cantidad: 1, nota: '', verNota: false, elegidos: [] });
+        }
+        pintarTodo();
+    }
+
+    // Agrega un renglón sin tamaño; si ya hay uno sin tamaño, le suma 1
+    function agregarGrupo(base) {
+        const pendiente = orden.find(l => l.grupo === base && !l.id && !l.nota);
+        if (pendiente) pendiente.cantidad++;
+        else orden.push({ tipo: 'producto', grupo: base, id: null, nombre: base, precio: 0,
+                          cantidad: 1, nota: '', verNota: false, elegidos: [] });
+        pintarTodo();
+    }
+
+    function pintarOrden() {
+        if (orden.length === 0) {
+            $('renglones').innerHTML = '<p class="text-muted text-center my-3">Toca un platillo o artículo para agregarlo.</p>';
+            return;
+        }
+
+        $('renglones').innerHTML = orden.map((l, i) => {
+            const elegidos = l.elegidos.map(e => (e.cantidad > 1 ? e.cantidad + '× ' : '') + esc(e.nombre)).join(', ');
+            return `<div class="border-bottom py-2">
+                <div class="d-flex justify-content-between">
+                    <span class="fw-semibold">${esc(l.nombre)}</span>
+                    <span>${l.grupo && !l.id ? '—' : pesos(l.precio * l.cantidad)}</span>
+                </div>
+                ${l.grupo ? `<div class="d-flex gap-1 my-1">
+                    ${grupos[l.grupo].map(o => `<button type="button" data-accion="tamano" data-idx="${i}" data-id="${o.id}"
+                        class="btn btn-sm flex-fill ${l.id === o.id ? 'btn-warning fw-semibold' : 'btn-outline-warning text-dark'}">
+                        ${esc(capitalizar(o.tamano))}<br><small>${pesos(centavos(o.precio))}</small></button>`).join('')}
+                </div>
+                ${!l.id ? '<div class="small text-danger">Elige el tamaño</div>' : ''}` : ''}
+                ${l.tipo === 'producto' ? `<div class="small ${elegidos ? 'text-primary' : 'text-muted'}">${elegidos || 'Sin elegir'}</div>` : ''}
+                ${l.verNota || l.nota ? `<input class="form-control form-control-sm mt-1" data-nota="${i}" maxlength="150"
+                        list="sugerenciasNota" placeholder="Ej. sin mayonesa, sin chile" value="${esc(l.nota)}" />` : ''}
+                <div class="d-flex align-items-center gap-1 mt-1">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-accion="menos" data-idx="${i}">−</button>
+                    <span class="px-2">${l.cantidad}</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-accion="mas" data-idx="${i}">+</button>
+                    ${l.tipo === 'producto' ? `<button type="button" class="btn btn-sm btn-outline-primary ms-2" data-accion="elegir" data-idx="${i}">Elegir</button>
+                    <button type="button" class="btn btn-sm ${l.nota ? 'btn-secondary' : 'btn-outline-secondary'}" data-accion="nota" data-idx="${i}">Nota</button>` : ''}
+                    <button type="button" class="btn btn-sm btn-link text-danger ms-auto" data-accion="quitar" data-idx="${i}">Quitar</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    $('renglones').addEventListener('click', e => {
+        const btn = e.target.closest('button[data-accion]');
+        if (!btn) return;
+        const i = Number(btn.dataset.idx);
+        const l = orden[i];
+
+        switch (btn.dataset.accion) {
+            case 'mas':
+                if (l.tipo === 'articulo') {
+                    const a = datos.sueltos.find(x => x.id === l.id);
+                    if (apartado(l.id, null) >= a.stock) { alert('Ya no hay más ' + a.nombre + ' en el inventario.'); return; }
+                }
+                l.cantidad++;
+                break;
+            case 'menos':
+                if (l.cantidad > 1) l.cantidad--; else orden.splice(i, 1);
+                break;
+            case 'quitar':
+                orden.splice(i, 1);
+                break;
+            case 'elegir':
+                abrirElegir(i);
+                return;
+            case 'tamano': {
+                const o = grupos[l.grupo].find(x => x.id === Number(btn.dataset.id));
+                l.id = o.id;
+                l.nombre = o.nombre;
+                l.precio = centavos(o.precio);
+                break;
+            }
+            case 'nota':
+                l.verNota = !l.verNota || !!l.nota;
+                pintarOrden();
+                const campo = document.querySelector(`[data-nota="${i}"]`);
+                if (campo) campo.focus();
+                return;
+        }
+        pintarTodo();
+    });
+
+    $('renglones').addEventListener('input', e => {
+        if (e.target.dataset.nota === undefined) return;
+        orden[Number(e.target.dataset.nota)].nota = e.target.value;
+    });
+
+    function calcular() {
+        const subtotal = orden.reduce((s, l) => s + l.precio * l.cantidad, 0);
+        const consumo = $('chkConsumo').checked;
+        const descuento = consumo ? 0 : Math.min(Math.max(centavos($('descuento').value), 0), subtotal);
+        return { subtotal, consumo, descuento, total: subtotal - descuento };
+    }
+
+    function pintarTotales() {
+        const c = calcular();
+        $('txtSubtotal').textContent = pesos(c.subtotal);
+        $('txtTotal').textContent = c.consumo ? 'No se cobra' : pesos(c.total);
+        $('grupoDescuento').style.display = c.consumo ? 'none' : '';
+        const faltaTamano = orden.some(l => l.grupo && !l.id);
+        $('btnCobrar').textContent = faltaTamano ? 'Elige el tamaño' : (c.consumo ? 'Registrar consumo' : 'Cobrar');
+        $('btnCobrar').disabled = orden.length === 0 || !cajaAbierta || faltaTamano;
+    }
+
+    function pintarTodo() {
+        pintarOrden();
+        pintarTotales();
+        pintarCatalogo();   // para actualizar los "Quedan"
+    }
+
+    $('chkConsumo').addEventListener('change', pintarTotales);
+    $('descuento').addEventListener('input', pintarTotales);
+
+    $('btnVaciar').addEventListener('click', () => {
+        if (orden.length && !confirm('¿Vaciar la orden?')) return;
+        limpiar();
+    });
+
+    function limpiar() {
+        orden = [];
+        $('nombreOrden').value = '';
+        $('descuento').value = '';
+        $('motivoDescuento').value = '';
+        $('chkConsumo').checked = false;
+        pintarTodo();
+    }
+
+    // ---------- Elegir papitas / sopa ----------
+    function abrirElegir(i) {
+        idxElegir = i;
+        temporalElegidos = {};
+        orden[i].elegidos.forEach(e => temporalElegidos[e.id] = e.cantidad);
+        $('elegirPlatillo').textContent = orden[i].nombre;
+        pintarElegibles();
+        modalElegir.show();
+    }
+
+    function pintarElegibles() {
+        const grupos = {};
+        datos.elegibles.forEach(a => (grupos[a.categoria] ??= []).push(a));
+
+        let html = '';
+        for (const [categoria, lista] of Object.entries(grupos)) {
+            html += `<h6 class="text-muted mt-3">${esc(categoria)}</h6><div class="list-group">`;
+            lista.forEach(a => {
+                const cant = temporalElegidos[a.id] || 0;
+                const quedan = a.stock - apartado(a.id, idxElegir) - cant;
+                html += `<div class="list-group-item d-flex align-items-center gap-2 ${cant > 0 ? 'list-group-item-warning' : ''}">
+                    <span class="flex-grow-1">${esc(a.nombre)} <small class="text-muted">(quedan ${quedan})</small></span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-elegir="menos" data-id="${a.id}" ${cant === 0 ? 'disabled' : ''}>−</button>
+                    <span style="width: 1.5rem" class="text-center">${cant}</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-elegir="mas" data-id="${a.id}" ${quedan <= 0 ? 'disabled' : ''}>+</button>
+                </div>`;
+            });
+            html += '</div>';
+        }
+        $('listaElegibles').innerHTML = html;
+    }
+
+    $('listaElegibles').addEventListener('click', e => {
+        const btn = e.target.closest('button[data-elegir]');
+        if (!btn) return;
+        const id = Number(btn.dataset.id);
+        const actual = temporalElegidos[id] || 0;
+        temporalElegidos[id] = btn.dataset.elegir === 'mas' ? actual + 1 : Math.max(actual - 1, 0);
+        pintarElegibles();
+    });
+
+    $('btnGuardarElegidos').addEventListener('click', () => {
+        orden[idxElegir].elegidos = Object.entries(temporalElegidos)
+            .filter(([, cant]) => cant > 0)
+            .map(([id, cant]) => {
+                const a = datos.elegibles.find(x => x.id === Number(id));
+                return { id: a.id, nombre: a.nombre, cantidad: cant };
+            });
+        modalElegir.hide();
+        pintarTodo();
+    });
+
+    // ---------- Cobrar ----------
+    const campoPago = { Efectivo: $('pagoEfectivo'), Tarjeta: $('pagoTarjeta'), Transferencia: $('pagoTransferencia') };
+
+    $('btnCobrar').addEventListener('click', () => {
+        const c = calcular();
+
+        if (!c.consumo && c.descuento > 0 && !$('motivoDescuento').value.trim()) {
+            alert('Escribe el motivo del descuento (ej. Familiar).');
+            $('motivoDescuento').focus();
+            return;
+        }
+
+        if (c.consumo) {
+            if (confirm('¿Registrar como consumo personal? No se cobra, pero sí se descuenta del inventario.'))
+                enviar();
+            return;
+        }
+
+        // Por defecto: todo en efectivo
+        llenarTodo('Efectivo');
+        $('recibido').value = '';
+        $('errorCobrar').classList.add('d-none');
+        $('cobrarTotal').textContent = pesos(c.total);
+        actualizarPago();
+        modalCobrar.show();
+    });
+
+    function llenarTodo(metodo) {
+        const total = calcular().total;
+        for (const [m, campo] of Object.entries(campoPago))
+            campo.value = m === metodo ? (total / 100).toFixed(2) : '';
+        actualizarPago();
+    }
+
+    function leerPago() {
+        const total = calcular().total;
+        const efectivo = centavos(campoPago.Efectivo.value);
+        const tarjeta = centavos(campoPago.Tarjeta.value);
+        const transferencia = centavos(campoPago.Transferencia.value);
+        const suma = efectivo + tarjeta + transferencia;
+        const recibido = $('recibido').value === '' ? efectivo : centavos($('recibido').value);
+        return { total, efectivo, tarjeta, transferencia, suma, recibido, cambio: recibido - efectivo };
+    }
+
+    function actualizarPago() {
+        const p = leerPago();
+        const estado = $('estadoPago');
+        let ok = false;
+
+        $('grupoRecibido').style.display = p.efectivo > 0 ? '' : 'none';
+
+        if (p.suma < p.total) {
+            estado.className = 'alert alert-warning py-2 mb-0';
+            estado.textContent = 'Falta ' + pesos(p.total - p.suma);
+        } else if (p.suma > p.total) {
+            estado.className = 'alert alert-danger py-2 mb-0';
+            estado.textContent = 'Los pagos suman ' + pesos(p.suma - p.total) + ' de más. Revisa los montos.';
+        } else if (p.efectivo > 0 && p.recibido < p.efectivo) {
+            estado.className = 'alert alert-danger py-2 mb-0';
+            estado.textContent = 'Lo que dio en efectivo no alcanza.';
+        } else {
+            estado.className = 'alert alert-success py-2 mb-0 fs-5';
+            estado.textContent = p.efectivo > 0 ? 'Cambio: ' + pesos(p.cambio) : 'Pago completo';
+            ok = true;
+        }
+
+        $('btnConfirmar').disabled = !ok;
+    }
+
+    document.querySelectorAll('.pago, #recibido').forEach(el => el.addEventListener('input', actualizarPago));
+    document.querySelectorAll('[data-todo]').forEach(b => b.addEventListener('click', () => llenarTodo(b.dataset.todo)));
+    document.querySelectorAll('[data-billete]').forEach(b => b.addEventListener('click', () => {
+        const efectivo = centavos(campoPago.Efectivo.value);
+        $('recibido').value = b.dataset.billete === 'exacto' ? (efectivo / 100).toFixed(2) : b.dataset.billete;
+        actualizarPago();
+    }));
+
+    $('btnConfirmar').addEventListener('click', enviar);
+
+    async function enviar() {
+        const c = calcular();
+        const p = leerPago();
+
+        const venta = {
+            nombreOrden: $('nombreOrden').value.trim() || null,
+            tipo: c.consumo ? 'ConsumoPersonal' : 'Venta',
+            descuento: c.descuento / 100,
+            motivoDescuento: $('motivoDescuento').value.trim() || null,
+            efectivoRecibido: !c.consumo && p.efectivo > 0 ? p.recibido / 100 : null,
+            items: orden.map(l => ({
+                tipo: l.tipo,
+                id: l.id,
+                cantidad: l.cantidad,
+                nota: l.nota.trim() || null,
+                elegidos: l.elegidos.map(e => ({ id: e.id, cantidad: e.cantidad }))
+            })),
+            pagos: c.consumo ? [] : [
+                { metodo: 'Efectivo', monto: p.efectivo / 100 },
+                { metodo: 'Tarjeta', monto: p.tarjeta / 100 },
+                { metodo: 'Transferencia', monto: p.transferencia / 100 }
+            ].filter(x => x.monto > 0)
+        };
+
+        const btn = $('btnConfirmar');
+        btn.disabled = true;
+        $('btnCobrar').disabled = true;
+
+        try {
+            const resp = await fetch('?handler=Cobrar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                },
+                body: JSON.stringify(venta)
+            });
+
+            if (!resp.ok) throw new Error('El servidor respondió ' + resp.status);
+            const r = await resp.json();
+
+            if (!r.exito) {
+                mostrarError(c.consumo, r.mensaje);
+                return;
+            }
+
+            modalCobrar.hide();
+            ultimaVentaId = r.ventaId;
+            $('listoMensaje').textContent = r.mensaje;
+            $('listoCambio').textContent = !c.consumo && p.efectivo > 0 ? 'Cambio: ' + pesos(p.cambio) : '';
+            modalListo.show();
+
+            if ($('chkAutoTicket').checked && !c.consumo)
+                imprimirTicket(r.ventaId);
+        } catch (err) {
+            mostrarError(c.consumo, 'No se pudo registrar: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            pintarTotales();
+        }
+    }
+
+    function mostrarError(consumo, mensaje) {
+        if (consumo) { alert(mensaje); return; }
+        $('errorCobrar').textContent = mensaje;
+        $('errorCobrar').classList.remove('d-none');
+    }
+
+    // ---------- Ticket ----------
+    let ultimaVentaId = null;
+
+    // Carga el ticket en el iframe escondido y le pide que se imprima
+    // (por ahora se elige "Guardar como PDF"; con impresora sale directo)
+    function imprimirTicket(ventaId) {
+        const marco = $('marcoTicket');
+        marco.onload = () => marco.contentWindow.imprimirTicket();
+        marco.src = '/Ticket/' + ventaId;
+    }
+
+    $('btnTicket').addEventListener('click', () => { if (ultimaVentaId) imprimirTicket(ultimaVentaId); });
+
+    // Recordar si quieren el ticket automático (en este navegador)
+    try {
+        $('chkAutoTicket').checked = localStorage.getItem('autoTicket') !== 'no';
+        $('chkAutoTicket').addEventListener('change', e =>
+            localStorage.setItem('autoTicket', e.target.checked ? 'si' : 'no'));
+    } catch { /* si el navegador no deja guardar, se queda marcado */ }
+
+    // Al cerrar el aviso de "venta lista" se recarga para traer el inventario actualizado
+    $('modalListo').addEventListener('hidden.bs.modal', () => location.reload());
+
+    pintarTodo();
+})();
+</script>
+}

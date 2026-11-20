@@ -1,0 +1,105 @@
+@model MaizitosBaja.Web.Pages.Inventario.ArticuloFormPageModel
+
+<form method="post" class="card shadow-sm">
+    <div class="card-body">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+        <input type="hidden" asp-for="Input.ArticuloId" />
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="Input.CategoriaId" class="form-label"></label>
+                <select asp-for="Input.CategoriaId" asp-items="Model.Categorias" class="form-select">
+                    <option value="">-- Selecciona --</option>
+                </select>
+                <span asp-validation-for="Input.CategoriaId" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Input.ProveedorId" class="form-label"></label>
+                <select asp-for="Input.ProveedorId" asp-items="Model.Proveedores" class="form-select">
+                    <option value="">(Sin proveedor)</option>
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Input.Nombre" class="form-label"></label>
+                <input asp-for="Input.Nombre" class="form-control" placeholder="Ej. Coca, Tostitos, Vaso 12 oz" />
+                <span asp-validation-for="Input.Nombre" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Input.Variante" class="form-label"></label>
+                <input asp-for="Input.Variante" class="form-control" placeholder="Ej. Zero, Verdes, Limón (opcional)" />
+                <span asp-validation-for="Input.Variante" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="Input.Unidad" class="form-label"></label>
+                <select asp-for="Input.Unidad" class="form-select">
+                    <option value="Pieza">Pieza</option>
+                    <option value="Paquete">Paquete</option>
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                @if (Model.EsNuevo)
+                {
+                    <label asp-for="Input.StockInicial" class="form-label"></label>
+                    <input asp-for="Input.StockInicial" class="form-control" min="0" />
+                    <span asp-validation-for="Input.StockInicial" class="text-danger small"></span>
+                }
+                else
+                {
+                    <label class="form-label">Existencia actual</label>
+                    <input value="@Model.Input.StockActual" class="form-control" disabled />
+                    <div class="form-text">La existencia cambia con entradas, ventas y ajustes.</div>
+                }
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="Input.StockMinimo" class="form-label"></label>
+                <input asp-for="Input.StockMinimo" class="form-control" min="0" />
+                <div class="form-text">Avisa cuando quede esta cantidad o menos.</div>
+                <span asp-validation-for="Input.StockMinimo" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4 d-flex align-items-end">
+                <div class="form-check form-switch mb-2">
+                    <input asp-for="Input.SeVendeSuelto" class="form-check-input" id="chkSuelto" />
+                    <label asp-for="Input.SeVendeSuelto" class="form-check-label" for="chkSuelto"></label>
+                </div>
+            </div>
+
+            <div class="col-md-4" id="grupoPrecio">
+                <label asp-for="Input.PrecioSuelto" class="form-label"></label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input asp-for="Input.PrecioSuelto" type="number" class="form-control" step="0.01" min="0" />
+                </div>
+                <span asp-validation-for="Input.PrecioSuelto" class="text-danger small"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-footer d-flex gap-2 justify-content-end">
+        <a asp-page="./Index" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-warning">
+            @(Model.EsNuevo ? "Agregar artículo" : "Guardar cambios")
+        </button>
+    </div>
+</form>
+
+<script>
+    // El precio solo se muestra si el artículo se vende suelto
+    (function () {
+        const chk = document.getElementById('chkSuelto');
+        const grupo = document.getElementById('grupoPrecio');
+        const precio = grupo.querySelector('input');
+        function actualizar() {
+            grupo.style.display = chk.checked ? '' : 'none';
+            if (!chk.checked) precio.value = '';
+        }
+        chk.addEventListener('change', actualizar);
+        actualizar();
+    })();
+</script>

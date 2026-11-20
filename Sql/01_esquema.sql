@@ -147,6 +147,7 @@ CREATE TABLE DetalleVenta (
     Cantidad       INT           NOT NULL,
     PrecioUnitario DECIMAL(10,2) NOT NULL,
     Subtotal       DECIMAL(10,2) NOT NULL,
+    Nota           VARCHAR(150)  NULL,     -- indicaciones: "sin mayonesa", "sin chile"
     CONSTRAINT CK_Detalle_Cantidad CHECK (Cantidad > 0),
     CONSTRAINT CK_Detalle_Precio   CHECK (PrecioUnitario >= 0),
     CONSTRAINT CK_Detalle_Subtotal CHECK (Subtotal = Cantidad * PrecioUnitario),

@@ -170,8 +170,10 @@ END$$
 -- Si algo falla, hace ROLLBACK y no se guarda nada.
 --
 -- p_Items (JSON): lista de renglones
---   [{"tipo":"producto","id":18,"cantidad":1,"elegidos":[{"id":17,"cantidad":1}]},
+--   [{"tipo":"producto","id":18,"cantidad":1,"nota":"sin chile",
+--     "elegidos":[{"id":17,"cantidad":1}]},
 --    {"tipo":"articulo","id":26,"cantidad":2}]
+--   "nota" es opcional (indicaciones del cliente para el platillo)
 -- p_Pagos (JSON): lista de pagos (vacía en consumo personal)
 --   [{"metodo":"Tarjeta","monto":100},{"metodo":"Efectivo","monto":75}]
 -- =====================================================
@@ -195,6 +197,7 @@ BEGIN
     DECLARE v_cant      INT;
     DECLARE v_precio    DECIMAL(10,2);
     DECLARE v_nombre    VARCHAR(110);
+    DECLARE v_nota      VARCHAR(150);
     DECLARE v_subtotal  DECIMAL(10,2) DEFAULT 0;
     DECLARE v_total     DECIMAL(10,2);
     DECLARE v_numPagos  INT DEFAULT 0;
@@ -346,13 +349,19 @@ BEGIN
         SET v_id       = JSON_EXTRACT(v_item, '$.id');
         SET v_cant     = JSON_EXTRACT(v_item, '$.cantidad');
 
+        -- Nota opcional: solo si viene como texto y no está vacía
+        SET v_nota = NULL;
+        IF JSON_TYPE(JSON_EXTRACT(v_item, '$.nota')) = 'STRING' THEN
+            SET v_nota = NULLIF(TRIM(LEFT(JSON_UNQUOTE(JSON_EXTRACT(v_item, '$.nota')), 150)), '');
+        END IF;
+
         IF v_tipoItem = 'producto' THEN
             SELECT Precio, Nombre INTO v_precio, v_nombre
               FROM Producto
              WHERE ProductoId = v_id;
 
-            INSERT INTO DetalleVenta (VentaId, ProductoId, ArticuloId, Cantidad, PrecioUnitario, Subtotal)
-            VALUES (p_VentaId, v_id, NULL, v_cant, v_precio, v_cant * v_precio);
+            INSERT INTO DetalleVenta (VentaId, ProductoId, ArticuloId, Cantidad, PrecioUnitario, Subtotal, Nota)
+            VALUES (p_VentaId, v_id, NULL, v_cant, v_precio, v_cant * v_precio, v_nota);
 
             SET v_det = LAST_INSERT_ID();
 
@@ -374,8 +383,8 @@ BEGIN
               FROM Articulo
              WHERE ArticuloId = v_id;
 
-            INSERT INTO DetalleVenta (VentaId, ProductoId, ArticuloId, Cantidad, PrecioUnitario, Subtotal)
-            VALUES (p_VentaId, NULL, v_id, v_cant, v_precio, v_cant * v_precio);
+            INSERT INTO DetalleVenta (VentaId, ProductoId, ArticuloId, Cantidad, PrecioUnitario, Subtotal, Nota)
+            VALUES (p_VentaId, NULL, v_id, v_cant, v_precio, v_cant * v_precio, v_nota);
 
             INSERT INTO MovimientoInventario (ArticuloId, Tipo, Cantidad, UsuarioId, VentaId, Observaciones)
             VALUES (v_id, v_tipoMov, -v_cant, p_UsuarioId, p_VentaId, 'Venta suelta');
@@ -506,8 +515,9 @@ SELECT fn_EfectivoEsperado(1) AS EsperadoCorte1,
 
 -- V2. Venta normal en efectivo: Tostilocos (elige Tostitos verdes)
 --     + 2 Coca Zero sueltas = $190. Paga con $500, cambio $310.
+--     Los Tostilocos llevan la nota "sin cacahuate".
 CALL sp_RegistrarVenta(1, 'Prueba V2', 'Venta', 0, NULL, 500,
-     '[{"tipo":"producto","id":18,"cantidad":1,"elegidos":[{"id":17,"cantidad":1}]},
+     '[{"tipo":"producto","id":18,"cantidad":1,"nota":"sin cacahuate","elegidos":[{"id":17,"cantidad":1}]},
        {"tipo":"articulo","id":26,"cantidad":2}]',
      '[{"metodo":"Efectivo","monto":190}]',
      @ventaV2);
@@ -523,6 +533,11 @@ CALL sp_RegistrarVenta(1, 'Prueba V3', 'Venta', 0, NULL, 100,
 SELECT VentaId, NombreOrden, Subtotal, Total, EfectivoRecibido, Cambio, Estado
   FROM Venta
  WHERE VentaId IN (@ventaV2, @ventaV3);
+
+-- La nota quedó guardada en el renglón de los Tostilocos
+SELECT VentaId, ProductoId, ArticuloId, Cantidad, Nota
+  FROM DetalleVenta
+ WHERE VentaId = @ventaV2;
 
 SELECT m.VentaId, TRIM(CONCAT(a.Nombre, ' ', a.Variante)) AS Articulo,
        m.Tipo, m.Cantidad, m.StockAnterior, m.StockNuevo

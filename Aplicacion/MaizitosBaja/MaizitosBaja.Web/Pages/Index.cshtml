@@ -1,4 +1,4 @@
-﻿@page
+@page
 @model IndexModel
 @{
     ViewData["Title"] = "Inicio";
@@ -8,5 +8,11 @@
     <h1 class="display-4">Maizitos Baja 🌽</h1>
     <div class="alert @(Model.Conectado ? "alert-success" : "alert-danger") mt-4">
         @Model.Mensaje
+    </div>
+    <div class="d-flex gap-2 justify-content-center mt-2">
+        <a asp-page="/Vender/Index" class="btn btn-warning btn-lg">Vender</a>
+        <a asp-page="/Caja/Index" class="btn btn-outline-dark btn-lg">Caja</a>
+        <a asp-page="/Productos/Index" class="btn btn-outline-dark btn-lg">Productos</a>
+        <a asp-page="/Inventario/Index" class="btn btn-outline-dark btn-lg">Inventario</a>
     </div>
 </div>

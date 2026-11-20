@@ -1,0 +1,13 @@
+@page "{id:int}"
+@model MaizitosBaja.Web.Pages.Productos.EditarModel
+@{
+    ViewData["Title"] = "Editar platillo";
+}
+
+<h2 class="mb-3">Editar platillo</h2>
+
+<partial name="_FormularioProducto" for="Input" />
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

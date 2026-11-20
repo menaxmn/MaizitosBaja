@@ -1,0 +1,83 @@
+@page
+@model MaizitosBaja.Web.Pages.Productos.IndexModel
+@{
+    ViewData["Title"] = "Productos";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="m-0">Productos del menú</h2>
+    <a asp-page="./Crear" class="btn btn-warning">+ Nuevo platillo</a>
+</div>
+
+@if (TempData["Mensaje"] is string mensaje)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @mensaje <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] is string errorTemp)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @errorTemp <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+
+<form method="get" class="row g-2 align-items-center mb-3">
+    <div class="col">
+        <input name="Buscar" value="@Model.Buscar" class="form-control" placeholder="Buscar platillo o ingrediente..." />
+    </div>
+    <div class="col-auto form-check ms-2">
+        <input class="form-check-input" type="checkbox" name="VerInactivos" value="true" id="chkInactivos"
+               checked="@Model.VerInactivos" onchange="this.form.submit()" />
+        <label class="form-check-label" for="chkInactivos">Ver los quitados del menú</label>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-outline-secondary">Buscar</button>
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Platillo</th>
+                <th>Descripción</th>
+                <th class="text-end">Precio</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Productos.Count == 0)
+            {
+                <tr><td colspan="4" class="text-center text-muted py-4">No hay platillos con esos filtros.</td></tr>
+            }
+            @foreach (var p in Model.Productos)
+            {
+                <tr class="@(p.Activo ? "" : "table-secondary text-muted")">
+                    <td class="fw-semibold">
+                        @p.Nombre
+                        @if (!p.Activo)
+                        {
+                            <span class="badge bg-secondary ms-1">Fuera del menú</span>
+                        }
+                    </td>
+                    <td class="small text-muted">@(p.Descripcion ?? "—")</td>
+                    <td class="text-end">@p.Precio.ToString("C")</td>
+                    <td class="text-nowrap text-end">
+                        <a asp-page="./Editar" asp-route-id="@p.ProductoId" class="btn btn-sm btn-outline-primary">Editar</a>
+                        <form method="post" asp-page-handler="CambiarEstado" asp-route-id="@p.ProductoId"
+                              asp-route-Buscar="@Model.Buscar" asp-route-VerInactivos="@Model.VerInactivos" class="d-inline">
+                            <button type="submit" class="btn btn-sm @(p.Activo ? "btn-outline-danger" : "btn-outline-success")">
+                                @(p.Activo ? "Quitar del menú" : "Regresar al menú")
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
