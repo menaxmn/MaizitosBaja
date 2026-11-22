@@ -105,7 +105,7 @@ END$$
 -- TRIGGER 4 (antes de actualizar un corte de caja)
 -- Evento:    BEFORE UPDATE en CorteCaja
 -- Condición: el corte ya estaba Cerrado
--- Efecto:    rechaza cualquier cambio (regla 19: después del cierre
+-- Efecto:    rechaza cualquier cambio (RN-12: después del cierre
 --            el corte no se modifica). Cerrar un corte abierto sí se permite.
 -- =====================================================
 CREATE TRIGGER trg_Corte_BU
