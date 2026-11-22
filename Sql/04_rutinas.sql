@@ -17,6 +17,7 @@ USE MaizitosBaja;
 DROP TRIGGER   IF EXISTS trg_Movimiento_BI;
 DROP TRIGGER   IF EXISTS trg_Movimiento_AI;
 DROP TRIGGER   IF EXISTS trg_Venta_BI;
+DROP TRIGGER   IF EXISTS trg_Corte_BU;
 DROP FUNCTION  IF EXISTS fn_EfectivoEsperado;
 DROP PROCEDURE IF EXISTS sp_AbrirCorte;
 DROP PROCEDURE IF EXISTS sp_RegistrarVenta;
@@ -101,6 +102,23 @@ BEGIN
 END$$
 
 -- =====================================================
+-- TRIGGER 4 (antes de actualizar un corte de caja)
+-- Evento:    BEFORE UPDATE en CorteCaja
+-- Condición: el corte ya estaba Cerrado
+-- Efecto:    rechaza cualquier cambio (regla 19: después del cierre
+--            el corte no se modifica). Cerrar un corte abierto sí se permite.
+-- =====================================================
+CREATE TRIGGER trg_Corte_BU
+BEFORE UPDATE ON CorteCaja
+FOR EACH ROW
+BEGIN
+    IF OLD.Estado = 'Cerrado' THEN
+        SIGNAL SQLSTATE '45000'
+           SET MESSAGE_TEXT = 'El corte ya está cerrado y no se puede modificar';
+    END IF;
+END$$
+
+-- =====================================================
 -- FUNCIÓN: fn_EfectivoEsperado(corte)
 -- Devuelve cuánto efectivo debe haber en caja:
 -- fondo inicial + pagos en efectivo de ventas pagadas del corte.
@@ -156,8 +174,10 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ya se hizo el corte de hoy';
     END IF;
 
-    INSERT INTO CorteCaja (UsuarioId, FondoInicial)
-    VALUES (p_UsuarioId, p_FondoInicial);
+    -- FechaApertura se pasa explícita: FechaCorte es una columna generada
+    -- a partir de ella y en MySQL 8.0.46 fallaba si se dejaba el DEFAULT.
+    INSERT INTO CorteCaja (UsuarioId, FechaApertura, FondoInicial)
+    VALUES (p_UsuarioId, NOW(), p_FondoInicial);
 
     SET p_CorteId = LAST_INSERT_ID();
 END$$
@@ -638,6 +658,10 @@ CALL sp_CancelarVenta(6, 1, 'Inválida I9');
 --     -> "El efectivo contado no puede ser negativo"
 CALL sp_CerrarCorte(-100, 'Inválida I10', @x);
 
+-- I11. Modificar un corte ya cerrado (corte 1)
+--      -> Trigger: "El corte ya está cerrado y no se puede modificar"
+UPDATE CorteCaja SET FondoInicial = 999 WHERE CorteId = 1;
+
 
 -- =====================================================
 -- COMPROBACIÓN FINAL: ninguna prueba inválida dejó datos
@@ -649,3 +673,21 @@ SELECT
     (SELECT Stock FROM Articulo WHERE ArticuloId = 15) AS StockBuldakLimon,
     (SELECT Estado FROM CorteCaja WHERE CorteId = 2)   AS EstadoCorte2;
 -- Esperado: 0, 0, 2, 2, 'Abierto'
+
+
+-- =====================================================
+-- PRUEBAS VÁLIDAS DE CIERRE Y APERTURA (ejecutar AL FINAL)
+-- Cierran el corte 2 y abren el del día; por eso van después
+-- de las pruebas inválidas, que necesitan el corte 2 abierto.
+-- =====================================================
+-- V6. Cerrar la caja del corte 2 con $1,000 contados.
+--     Esperado: diferencia = 1000 - fn_EfectivoEsperado(2) = 1000 - 750 = 250
+--     (corte 2: fondo 500 + 175 + 75 de V3; V2 está cancelada).
+CALL sp_CerrarCorte(1000, 'Cierre de prueba V6', @difV6);
+SELECT @difV6 AS Diferencia, fn_EfectivoEsperado(2) AS Esperado;
+
+-- V7. Abrir la caja del día con fondo de $300 (ya no hay caja abierta).
+CALL sp_AbrirCorte(1, 300, @corteV7);
+SELECT CorteId, FechaCorte, Estado, FondoInicial FROM CorteCaja WHERE CorteId = @corteV7;
+-- Esperado: Estado Abierto, FechaCorte = hoy
+

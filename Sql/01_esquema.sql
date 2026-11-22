@@ -98,7 +98,7 @@ CREATE TABLE CorteCaja (
         REFERENCES Usuario (UsuarioId)
 );
 
---- Encabezado de cada venta (el "ticket")
+-- Encabezado de cada venta (el "ticket")
 CREATE TABLE Venta (
     VentaId          INT AUTO_INCREMENT PRIMARY KEY,
     CorteId          INT           NOT NULL,
