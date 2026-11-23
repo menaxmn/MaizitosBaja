@@ -30,7 +30,7 @@ public class CrearModel : PageModel
         var r = _negocio.Agregar(Input.ToEntidad());
         if (!r.Exito)
         {
-            ModelState.AddModelError(string.Empty, r.Mensaje);
+            ModelState.AddModelError("Input", r.Mensaje); // clave = prefijo del partial (for="Input"), si no el resumen no la muestra
             return Page();
         }
 
