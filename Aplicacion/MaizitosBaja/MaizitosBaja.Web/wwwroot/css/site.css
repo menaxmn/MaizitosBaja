@@ -1,31 +1,548 @@
-html {
-  font-size: 14px;
+/* =====================================================================
+   Maizitos Baja · estilo del sistema
+   Colores sacados del logo: maíz, carbón del letrero, crema del
+   círculo del logo, verde de la hoja y rojo de las letras.
+   ===================================================================== */
+
+:root {
+    /* Paleta */
+    --maiz: #FFD21F;          /* amarillo del elote: acciones principales, lo activo */
+    --maiz-oscuro: #F2B705;   /* hover / bordes del amarillo */
+    --maiz-claro: #FFF1A8;    /* fondos suaves de lo seleccionado */
+    --carbon: #1F1D17;        /* fondo del letrero: barra lateral */
+    --carbon-2: #2C2920;      /* hover en la barra lateral */
+    --crema: #FFF8DC;         /* fondo del círculo del logo: área de trabajo */
+    --crema-2: #FCEFC0;       /* encabezados de tabla, separadores */
+    --hoja: #3A9A2C;          /* verde del logo: éxito, caja abierta */
+    --chile: #D7261E;         /* rojo de las letras: alertas, cancelar */
+    --tinta: #2A2618;         /* texto */
+    --tinta-suave: #6E674F;   /* texto secundario */
+    --linea: #EADFB4;         /* bordes */
+
+    --radio: 14px;
+    --radio-chico: 9px;
+    --ancho-barra: 248px;
+
+    --letra-titulo: "Lilita One", "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+    --letra-texto: "Nunito", "Segoe UI", system-ui, sans-serif;
+
+    /* Bootstrap toma estos valores */
+    --bs-body-font-family: var(--letra-texto);
+    --bs-body-color: var(--tinta);
+    --bs-body-bg: var(--crema);
+    --bs-border-color: var(--linea);
+    --bs-border-radius: var(--radio-chico);
+    --bs-border-radius-lg: var(--radio);
+    --bs-link-color: #8A6A00;
+    --bs-link-color-rgb: 138, 106, 0;
+    --bs-link-hover-color: var(--tinta);
+    --bs-secondary-color: var(--tinta-suave);
+    --bs-success-rgb: 58, 154, 44;
+    --bs-danger-rgb: 215, 38, 30;
+    --bs-warning-rgb: 255, 210, 31;
 }
 
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
-}
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
-  position: relative;
-  min-height: 100%;
-}
+html { font-size: 13.5px; }
+@media (min-width: 1200px) { html { font-size: 14.5px; } }
 
 body {
-  margin-bottom: 60px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;   /* los precios no "bailan" */
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-  color: var(--bs-secondary-color);
-  text-align: end;
+/* ---------- Títulos ---------- */
+h1, h2, h3, .titulo {
+    font-family: var(--letra-titulo);
+    font-weight: 400;
+    letter-spacing: .01em;
+    line-height: 1.1;
+}
+h2 { font-size: 1.8rem; }
+h5, h6, .card-title { font-weight: 800; }
+
+/* =====================================================================
+   Estructura: barra lateral + área de trabajo
+   ===================================================================== */
+.app {
+    display: flex;
+    min-height: 100vh;
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-  text-align: start;
+/* Columna oscura de la barra (en pantallas grandes) */
+.barra-col { flex-shrink: 0; }
+@media (min-width: 992px) {
+    .barra-col {
+        width: var(--ancho-barra);
+        background: var(--carbon);
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+    }
+}
+
+/* En pantallas chicas la barra sale como panel deslizable (offcanvas) */
+.barra {
+    --bs-offcanvas-width: var(--ancho-barra);
+    --bs-offcanvas-bg: var(--carbon);
+    color: #F5EFD6;
+}
+.barra .offcanvas-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding: 0;
+}
+
+/* El logo sobre los rayos de sol del letrero */
+.barra-logo {
+    display: block;
+    padding: 22px 26px 18px;
+    background:
+        radial-gradient(circle at 50% 55%, rgba(255, 210, 31, .30) 0 30%, transparent 62%),
+        repeating-conic-gradient(from 0deg at 50% 55%, rgba(255, 210, 31, .16) 0deg 5deg, transparent 5deg 15deg);
+    border-bottom: 1px solid rgba(255, 255, 255, .06);
+}
+.barra-logo img {
+    display: block;
+    width: 100%;
+    max-width: 190px;
+    margin: 0 auto;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .45));
+}
+
+.menu {
+    list-style: none;
+    margin: 0;
+    padding: 14px 12px;
+    flex-grow: 1;
+}
+.menu-grupo {
+    margin: 14px 14px 6px;
+    font-size: .78rem;
+    font-weight: 700;
+    color: #9C9478;
+}
+.menu a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    margin-bottom: 2px;
+    border-radius: 12px;
+    color: #F1EBD2;
+    font-weight: 700;
+    text-decoration: none;
+}
+.menu a svg { width: 20px; height: 20px; flex-shrink: 0; opacity: .85; }
+.menu a:hover { background: var(--carbon-2); color: #fff; }
+.menu a.activo {
+    background: var(--maiz);
+    color: var(--carbon);
+}
+.menu a.activo svg { opacity: 1; }
+
+/* Vender destaca aunque no esté activo: es lo que más se usa */
+.menu a.principal:not(.activo) {
+    border: 1.5px solid rgba(255, 210, 31, .55);
+    color: var(--maiz);
+}
+
+/* Estado de la caja, abajo de la barra */
+.estado-caja {
+    margin: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--carbon-2);
+    font-size: .85rem;
+    line-height: 1.35;
+    color: #DCD4B6;
+    text-decoration: none;
+    display: block;
+}
+.estado-caja:hover { color: #fff; }
+.estado-caja b { display: block; font-size: .95rem; color: #fff; }
+.punto {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: 1px;
+}
+.punto.abierta { background: #6BD35A; box-shadow: 0 0 0 3px rgba(107, 211, 90, .25); }
+.punto.cerrada { background: #8D8670; }
+.punto.pendiente { background: #FF8A3D; box-shadow: 0 0 0 3px rgba(255, 138, 61, .25); }
+
+/* Botón para apagar el sistema instalado */
+.btn-cerrar-sistema {
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, .14);
+    background: transparent;
+    color: #B9B092;
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-weight: 700;
+    font-size: .85rem;
+}
+.btn-cerrar-sistema:hover { color: #FF8A7E; border-color: #FF8A7E; }
+
+/* Área de trabajo */
+.contenido {
+    flex-grow: 1;
+    min-width: 0;
+    padding: 28px 32px 48px;
+}
+@media (max-width: 575.98px) {
+    .contenido { padding: 18px 14px 40px; }
+}
+
+/* Barra superior solo en pantallas chicas (para abrir el menú) */
+.barra-movil {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--carbon);
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+}
+.barra-movil img { height: 38px; }
+.barra-movil button {
+    border: 0;
+    background: var(--maiz);
+    color: var(--carbon);
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-weight: 800;
+}
+
+/* =====================================================================
+   Componentes de Bootstrap con la paleta del negocio
+   ===================================================================== */
+
+/* Botón principal (amarillo maíz) */
+.btn { font-weight: 800; border-radius: var(--radio-chico); }
+.btn-warning {
+    --bs-btn-bg: var(--maiz);
+    --bs-btn-border-color: var(--maiz);
+    --bs-btn-color: var(--carbon);
+    --bs-btn-hover-bg: var(--maiz-oscuro);
+    --bs-btn-hover-border-color: var(--maiz-oscuro);
+    --bs-btn-hover-color: var(--carbon);
+    --bs-btn-active-bg: var(--maiz-oscuro);
+    --bs-btn-active-border-color: var(--maiz-oscuro);
+    --bs-btn-active-color: var(--carbon);
+    --bs-btn-disabled-bg: #F3E3A0;
+    --bs-btn-disabled-border-color: #F3E3A0;
+    --bs-btn-disabled-color: #7A715A;
+    box-shadow: 0 2px 0 var(--maiz-oscuro);
+}
+.btn-dark {
+    --bs-btn-bg: var(--carbon);
+    --bs-btn-border-color: var(--carbon);
+    --bs-btn-hover-bg: var(--carbon-2);
+    --bs-btn-hover-border-color: var(--carbon-2);
+}
+.btn-outline-dark {
+    --bs-btn-color: var(--carbon);
+    --bs-btn-border-color: #CFC39A;
+    --bs-btn-hover-bg: var(--carbon);
+    --bs-btn-hover-border-color: var(--carbon);
+}
+.btn-outline-secondary {
+    --bs-btn-color: var(--tinta-suave);
+    --bs-btn-border-color: #D8CDA6;
+    --bs-btn-hover-bg: var(--crema-2);
+    --bs-btn-hover-border-color: #D8CDA6;
+    --bs-btn-hover-color: var(--tinta);
+}
+.btn-outline-danger {
+    --bs-btn-color: var(--chile);
+    --bs-btn-border-color: #F0B4AF;
+    --bs-btn-hover-bg: var(--chile);
+    --bs-btn-hover-border-color: var(--chile);
+}
+.btn-outline-success {
+    --bs-btn-color: var(--hoja);
+    --bs-btn-border-color: #B5DBA9;
+    --bs-btn-hover-bg: var(--hoja);
+    --bs-btn-hover-border-color: var(--hoja);
+}
+.btn-outline-primary {
+    --bs-btn-color: var(--tinta);
+    --bs-btn-border-color: #D8CDA6;
+    --bs-btn-hover-bg: var(--maiz-claro);
+    --bs-btn-hover-border-color: var(--maiz-oscuro);
+    --bs-btn-hover-color: var(--tinta);
+    --bs-btn-active-bg: var(--maiz);
+    --bs-btn-active-border-color: var(--maiz-oscuro);
+    --bs-btn-active-color: var(--tinta);
+}
+.btn-outline-warning {
+    --bs-btn-color: var(--tinta);
+    --bs-btn-border-color: var(--maiz-oscuro);
+    --bs-btn-hover-bg: var(--maiz-claro);
+    --bs-btn-hover-border-color: var(--maiz-oscuro);
+    --bs-btn-hover-color: var(--tinta);
+}
+
+/* Foco visible con teclado, en amarillo */
+.btn:focus-visible, .form-control:focus, .form-select:focus, .form-check-input:focus, a:focus-visible {
+    outline: none;
+    border-color: var(--maiz-oscuro);
+    box-shadow: 0 0 0 .22rem rgba(255, 210, 31, .55);
+}
+
+/* Formularios */
+.form-control, .form-select, .input-group-text {
+    border-color: #DCD0A4;
+    background-color: #FFFDF4;
+}
+.input-group-text { background: var(--crema-2); font-weight: 700; color: var(--tinta-suave); }
+.form-check-input:checked { background-color: var(--hoja); border-color: var(--hoja); }
+.form-label { font-weight: 700; }
+
+/* Tarjetas: blancas sobre crema, borde suave, sin sombra pesada */
+.card {
+    --bs-card-bg: #FFFEF8;
+    --bs-card-border-color: var(--linea);
+    --bs-card-border-radius: var(--radio);
+    --bs-card-cap-bg: var(--crema-2);
+}
+.shadow-sm { box-shadow: 0 1px 0 rgba(140, 110, 0, .08) !important; }
+
+/* Tablas */
+.table {
+    --bs-table-bg: #FFFEF8;
+    --bs-table-hover-bg: #FFF6CF;
+    --bs-table-border-color: #EFE6C3;
+}
+.table > thead.table-light, .table .table-light {
+    --bs-table-bg: var(--crema-2);
+    --bs-table-color: var(--tinta-suave);
+}
+.table > thead th { font-weight: 800; font-size: .85rem; border-bottom-width: 0; }
+.table-responsive {
+    border: 1px solid var(--linea);
+    border-radius: var(--radio);
+    background: #FFFEF8;
+}
+.table-responsive > .table { margin-bottom: 0; }
+.table-secondary { --bs-table-bg: #F3EEDC; }
+
+/* Avisos */
+.alert { border-radius: var(--radio); font-weight: 600; border-width: 0; border-left-width: 5px; border-left-style: solid; }
+.alert-success { background: #E9F6E3; color: #24601B; border-left-color: var(--hoja); }
+.alert-danger { background: #FDE8E6; color: #8E1610; border-left-color: var(--chile); }
+.alert-warning { background: #FFF3C2; color: #5C4A00; border-left-color: var(--maiz-oscuro); }
+.alert-info { background: #FFF8DC; color: var(--tinta); border-left-color: var(--tinta-suave); }
+
+/* Pestañas */
+.nav-tabs { --bs-nav-tabs-border-color: var(--linea); }
+.nav-tabs .nav-link { font-weight: 700; color: var(--tinta-suave); border-radius: 12px 12px 0 0; }
+.nav-tabs .nav-link.active {
+    background: #FFFEF8;
+    color: var(--tinta);
+    border-color: var(--linea) var(--linea) #FFFEF8;
+    box-shadow: inset 0 3px 0 var(--maiz);
+}
+
+/* Menús desplegables y modales */
+.dropdown-menu { border-color: var(--linea); border-radius: 12px; }
+.dropdown-item:active { background: var(--maiz); color: var(--carbon); }
+.dropdown-item { display: flex; align-items: center; gap: 10px; font-weight: 700; padding: .45rem 1rem; }
+.dropdown-item:hover { background: var(--maiz-claro); }
+.dropdown-item .icono, .nav-tabs .icono { width: 18px; height: 18px; flex-shrink: 0; color: var(--tinta-suave); }
+.dropdown-item:active .icono { color: var(--carbon); }
+.nav-tabs .nav-link { display: inline-flex; align-items: center; gap: 8px; }
+.nav-tabs .nav-link.active .icono { color: var(--tinta); }
+.modal-content { border-radius: 18px; border: 0; background: #FFFEF8; }
+.modal-header { border-bottom-color: var(--linea); }
+.modal-footer { border-top-color: var(--linea); }
+.modal-title { font-weight: 800; }
+
+/* Insignias con colores del logo */
+.badge.bg-success { background-color: var(--hoja) !important; }
+.badge.bg-danger { background-color: var(--chile) !important; }
+.badge.bg-warning { background-color: var(--maiz) !important; color: var(--carbon) !important; }
+
+/* =====================================================================
+   Pantalla de Vender
+   ===================================================================== */
+.tarjeta {
+    background: #FFFEF8 !important;
+    border: 1.5px solid var(--linea) !important;
+    border-radius: 12px !important;
+    min-height: 78px;
+    /* Sombra ligera en tono café (no gris) para dar profundidad sobre el crema */
+    box-shadow: 0 2px 0 rgba(150, 112, 0, .22), 0 6px 16px rgba(92, 70, 0, .18) !important;
+    transition: border-color .12s, background-color .12s, box-shadow .15s, transform .15s;
+}
+.tarjeta:hover:not(:disabled) {
+    background: var(--maiz-claro) !important;
+    border-color: var(--maiz-oscuro) !important;
+    box-shadow: 0 3px 0 rgba(150, 112, 0, .30), 0 12px 24px rgba(92, 70, 0, .24) !important;
+    transform: translateY(-3px);
+}
+.tarjeta:active:not(:disabled) {
+    transform: translateY(0) scale(.97);
+    box-shadow: 0 1px 2px rgba(92, 70, 0, .2) !important;
+}
+.tarjeta:disabled { box-shadow: none !important; opacity: .55; }
+.tarjeta .fw-semibold { font-weight: 800 !important; line-height: 1.2; }
+.tarjeta .text-success { color: #2F7F24 !important; font-weight: 800; }
+
+/* Encabezado de la orden (nombre) con el carbón de la barra lateral */
+.encabezado-orden {
+    background: var(--carbon) !important;
+    border-bottom: 3px solid var(--maiz) !important;
+    padding: 12px 14px;
+}
+.encabezado-orden .form-control {
+    background: #FFFDF4;
+    border-color: transparent;
+    font-weight: 700;
+}
+.encabezado-orden .form-control:focus {
+    border-color: var(--maiz);
+}
+
+/* Panel de la orden: escala de carbón, del más oscuro (nombre) al más claro (totales) */
+.panel-orden {
+    --orden-1: #1F1D17;   /* nombre de la orden (igual que la barra lateral) */
+    --orden-2: #2B2820;   /* platillos */
+    --orden-3: #39352B;   /* totales y cobrar */
+    --texto-orden: #F3ECD3;
+    --texto-orden-suave: #B9B092;
+    --linea-orden: rgba(255, 255, 255, .09);
+
+    border: 0;
+    border-radius: var(--radio);
+    overflow: hidden;
+    color: var(--texto-orden);
+    box-shadow: 0 8px 24px rgba(31, 29, 23, .25);
+}
+.panel-orden .encabezado-orden { background: var(--orden-1) !important; }
+.panel-orden .card-body { background: var(--orden-2); }
+.panel-orden .card-footer { background: var(--orden-3); border-top: 1px solid var(--linea-orden); }
+
+.panel-orden .border-bottom { border-color: var(--linea-orden) !important; }
+.panel-orden .text-muted { color: var(--texto-orden-suave) !important; }
+.panel-orden .text-primary { color: var(--maiz) !important; }
+.panel-orden .text-danger { color: #FF8A7E !important; }
+
+/* Botones dentro del panel oscuro */
+.panel-orden .btn-outline-secondary,
+.panel-orden .btn-outline-primary,
+.panel-orden .btn-outline-warning {
+    --bs-btn-color: var(--texto-orden);
+    --bs-btn-border-color: rgba(255, 255, 255, .22);
+    --bs-btn-hover-bg: rgba(255, 255, 255, .08);
+    --bs-btn-hover-border-color: rgba(255, 255, 255, .4);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-bg: rgba(255, 255, 255, .14);
+    --bs-btn-active-color: #fff;
+}
+.panel-orden .btn-outline-warning.text-dark { color: var(--texto-orden) !important; }
+.panel-orden .btn-secondary {
+    --bs-btn-bg: var(--maiz);
+    --bs-btn-border-color: var(--maiz);
+    --bs-btn-color: var(--carbon);
+    --bs-btn-hover-bg: var(--maiz-oscuro);
+    --bs-btn-hover-color: var(--carbon);
+}
+.panel-orden .btn-link.text-danger { text-decoration: none; }
+.panel-orden .btn-warning:disabled { opacity: .45; }
+
+/* Campos dentro del panel */
+.panel-orden .input-group-text {
+    background: rgba(255, 255, 255, .1);
+    border-color: transparent;
+    color: var(--texto-orden);
+}
+.panel-orden .card-body .form-control,
+.panel-orden .card-footer .form-control { border-color: transparent; }
+.panel-orden .form-check-input:not(:checked) { background-color: rgba(255, 255, 255, .15); border-color: transparent; }
+
+/* Total en amarillo maíz */
+.panel-orden #txtTotal { color: var(--maiz); }
+
+/* El total de la orden con la letra del logo */
+#txtTotal, #cobrarTotal, #listoCambio { font-family: var(--letra-titulo); font-weight: 400; }
+
+/* =====================================================================
+   Inicio
+   ===================================================================== */
+.inicio-saludo { color: var(--tinta-suave); font-weight: 700; margin-bottom: 2px; }
+
+/* Tarjeta grande de "abrir caja" con los rayos del letrero */
+.abrir-caja {
+    position: relative;
+    overflow: hidden;
+    border-radius: 20px;
+    background: var(--carbon);
+    color: #FBF5DC;
+    padding: 22px 32px;
+}
+.abrir-caja::before {
+    content: "";
+    position: absolute;
+    inset: -40% -10% -40% 35%;
+    background: repeating-conic-gradient(from 0deg at 60% 50%, rgba(255, 210, 31, .13) 0deg 6deg, transparent 6deg 16deg);
+    pointer-events: none;
+}
+.abrir-caja > * { position: relative; }
+.abrir-caja h1 { font-size: clamp(1.8rem, 3vw, 2.4rem); color: var(--maiz); margin-bottom: .25rem; }
+.abrir-caja p { color: #D9D0AE; margin-bottom: .6rem; }
+.abrir-caja .logo-hero { width: 150px; filter: drop-shadow(0 8px 18px rgba(0, 0, 0, .5)); }
+.abrir-caja .form-abrir { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+.abrir-caja .form-abrir .input-group { width: 260px; }
+.abrir-caja .form-control, .abrir-caja .input-group-text {
+    font-size: 1.25rem;
+    font-weight: 800;
+    border: 0;
+}
+.abrir-caja .input-group-text { background: var(--maiz-claro); color: var(--carbon); }
+.abrir-caja .btn-warning { font-size: 1.1rem; padding: .5rem 1.5rem; box-shadow: 0 3px 0 #B58A00; }
+@media (max-width: 767.98px) {
+    .abrir-caja { padding: 20px 18px; }
+}
+
+/* Números del día */
+.dato {
+    background: #FFFEF8;
+    border: 1px solid var(--linea);
+    border-radius: var(--radio);
+    padding: 16px 18px;
+    height: 100%;
+}
+.dato .valor { font-family: var(--letra-titulo); font-size: 1.7rem; line-height: 1.1; }
+.dato .etiqueta { color: var(--tinta-suave); font-weight: 700; font-size: .85rem; }
+.dato.destacado { background: var(--maiz); border-color: var(--maiz-oscuro); }
+.dato.destacado .etiqueta { color: #5C4A00; }
+
+/* "Se está acabando": una tarjeta por artículo, a todo lo ancho */
+.alertas {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+}
+.alerta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    background: #FFFEF8;
+    border: 1px solid var(--linea);
+    border-left: 5px solid var(--maiz);
+    border-radius: 12px;
+    font-weight: 800;
+}
+.alerta.agotado { border-left-color: var(--chile); }
+.alerta small { display: block; font-weight: 600; color: var(--tinta-suave); }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
 }

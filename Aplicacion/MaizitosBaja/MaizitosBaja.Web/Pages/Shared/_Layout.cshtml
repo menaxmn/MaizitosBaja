@@ -1,62 +1,105 @@
+@inject MaizitosBaja.Negocios.CajaNegocio CajaNegocio
+@inject IWebHostEnvironment Entorno
+@{
+    // Página actual, para marcar en amarillo la sección donde estás
+    string pagina = ViewContext.RouteData.Values["page"]?.ToString() ?? "";
+    string Activo(string carpeta) =>
+        carpeta == "/Index" ? (pagina == "/Index" ? "activo" : "")
+                            : (pagina.StartsWith(carpeta + "/") ? "activo" : "");
+
+    // Estado de la caja para el recuadro de abajo
+    MaizitosBaja.Entidades.CorteCaja? caja = null;
+    bool errorCaja = false;
+    try { caja = CajaNegocio.ObtenerAbierta(); } catch { errorCaja = true; }
+
+}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Maizitos Baja</title>
+    <link rel="icon" type="image/png" href="~/img/icono.png" />
     <script type="importmap"></script>
+
+    <!-- Letras: Lilita One (títulos, parecida al logo) y Nunito (texto).
+         Sin internet se usan letras del sistema. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@500;700;800&display=swap" />
+
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/MaizitosBaja.Web.styles.css" asp-append-version="true" />
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container">
-                <a class="navbar-brand" asp-area="" asp-page="/Index">Maizitos Baja 🌽</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Index">Inicio</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark fw-semibold" asp-area="" asp-page="/Vender/Index">Vender</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Caja/Index">Caja</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Productos/Index">Productos</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Inventario/Index">Inventario</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Movimientos/Index">Movimientos</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Proveedores/Index">Proveedores</a>
-                        </li>
-                    </ul>
+    <!-- Solo en pantallas chicas: botón para abrir el menú -->
+    <div class="barra-movil d-lg-none">
+        <button type="button" data-bs-toggle="offcanvas" data-bs-target="#barra" aria-controls="barra">☰ Menú</button>
+        <img src="~/img/logo.png" alt="Maizitos Baja" />
+    </div>
+
+    <div class="app">
+        <div class="barra-col">
+            <aside class="offcanvas-lg offcanvas-start barra" id="barra" tabindex="-1" aria-label="Menú principal">
+                <div class="offcanvas-body">
+                    <a class="barra-logo" asp-page="/Index" title="Inicio">
+                        <img src="~/img/logo.png" alt="Maizitos Baja · Elotes & Esquites" />
+                    </a>
+
+                    <nav>
+                        <ul class="menu">
+                            <li><a asp-page="/Index" class="@Activo("/Index")">@Iconos.Svg("inicio") Inicio</a></li>
+                            <li><a asp-page="/Vender/Index" class="principal @Activo("/Vender")">@Iconos.Svg("vender") Vender</a></li>
+                            <li><a asp-page="/Caja/Index" class="@Activo("/Caja")">@Iconos.Svg("caja") Caja</a></li>
+
+                            <li class="menu-grupo">Catálogo e inventario</li>
+                            <li><a asp-page="/Productos/Index" class="@Activo("/Productos")">@Iconos.Svg("productos") Productos</a></li>
+                            <li><a asp-page="/Inventario/Index" class="@Activo("/Inventario")">@Iconos.Svg("inventario") Inventario</a></li>
+                            <li><a asp-page="/Movimientos/Index" class="@Activo("/Movimientos")">@Iconos.Svg("movimientos") Movimientos</a></li>
+                            <li><a asp-page="/Proveedores/Index" class="@Activo("/Proveedores")">@Iconos.Svg("proveedores") Proveedores</a></li>
+                        </ul>
+                    </nav>
+
+                    <a asp-page="/Caja/Index" class="estado-caja">
+                        @if (errorCaja)
+                        {
+                            <b><span class="punto pendiente"></span>Sin conexión</b>
+                            <span>No se pudo revisar la caja.</span>
+                        }
+                        else if (caja == null)
+                        {
+                            <b><span class="punto cerrada"></span>Caja cerrada</b>
+                            <span>Ábrela para empezar a vender.</span>
+                        }
+                        else if (!caja.EsDeHoy)
+                        {
+                            <b><span class="punto pendiente"></span>Falta el corte</b>
+                            <span>La caja del @caja.FechaApertura.ToString("dd/MM") sigue abierta.</span>
+                        }
+                        else
+                        {
+                            <b><span class="punto abierta"></span>Caja abierta</b>
+                            <span>Desde las @caja.FechaApertura.ToString("h:mm tt"), fondo de @caja.FondoInicial.ToString("C0")</span>
+                        }
+                    </a>
+
+                    @if (!Entorno.IsDevelopment())
+                    {
+                        <!-- Solo en la versión instalada: apaga el sistema -->
+                        <form method="post" asp-page="/Sistema/Cerrar" class="px-3 pb-3"
+                              onsubmit="return confirm('¿Cerrar el sistema? Para volver a usarlo abre el ícono de Maizitos Baja.')">
+                            <button type="submit" class="btn-cerrar-sistema">Cerrar sistema</button>
+                        </form>
+                    }
                 </div>
-            </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+            </aside>
+        </div>
+
+        <main role="main" class="contenido">
             @RenderBody()
         </main>
     </div>
-
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - Maizitos Baja
-        </div>
-    </footer>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

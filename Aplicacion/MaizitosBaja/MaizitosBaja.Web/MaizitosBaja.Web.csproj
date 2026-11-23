@@ -5,6 +5,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>ce12035d-4c23-482d-aeb6-c78ff800a770</UserSecretsId>
+    <!-- Ícono del .exe (el logo de Maizitos Baja) -->
+    <ApplicationIcon>icono.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!-- Versión instalada (Release): sin ventana negra de consola -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <OutputType>WinExe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>

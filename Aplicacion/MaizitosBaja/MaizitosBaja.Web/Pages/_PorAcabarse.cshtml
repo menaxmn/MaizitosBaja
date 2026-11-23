@@ -1,0 +1,35 @@
+@model List<MaizitosBaja.Entidades.Articulo>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h3 class="h4 m-0">Se está acabando</h3>
+    <a asp-page="/Movimientos/Index" asp-route-pestana="entrada" class="small fw-bold">Registrar entrada</a>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="alert alert-success">Todo el inventario está por arriba de su mínimo.</div>
+}
+else
+{
+    <div class="alertas">
+        @foreach (var a in Model)
+        {
+            <a asp-page="/Movimientos/Index" asp-route-pestana="entrada" asp-route-articuloId="@a.ArticuloId"
+               class="alerta text-reset text-decoration-none @(a.Stock == 0 ? "agotado" : "")"
+               title="Registrar entrada de @a.NombreCompleto">
+                <span>
+                    @a.NombreCompleto
+                    <small>@a.Categoria, mínimo @a.StockMinimo</small>
+                </span>
+                @if (a.Stock == 0)
+                {
+                    <span class="badge bg-danger">Agotado</span>
+                }
+                else
+                {
+                    <span class="badge bg-warning">Quedan @a.Stock</span>
+                }
+            </a>
+        }
+    </div>
+}

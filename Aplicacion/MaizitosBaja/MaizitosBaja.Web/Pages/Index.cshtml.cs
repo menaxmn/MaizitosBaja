@@ -1,37 +1,75 @@
-using MaizitosBaja.Datos;
+using MaizitosBaja.Entidades;
+using MaizitosBaja.Negocios;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using MySqlConnector;
 
 namespace MaizitosBaja.Web.Pages;
 
+// Pantalla de Inicio. Cambia según el estado de la caja:
+//  - Cerrada            -> botón grande para abrirla
+//  - Abierta de hoy     -> resumen del día y lo que se está acabando
+//  - Abierta de otro día -> aviso para hacer el corte
 public class IndexModel : PageModel
 {
-    private readonly ConexionBD _conexion;
+    private readonly CajaNegocio _caja;
+    private readonly VentaNegocio _ventas;
+    private readonly ArticuloNegocio _articulos;
 
-    public string Mensaje { get; private set; } = "";
-    public bool Conectado { get; private set; }
+    public CorteCaja? Abierta { get; private set; }
+    public CorteCaja? UltimoCerrado { get; private set; }
+    public List<VentaResumen> UltimasVentas { get; private set; } = new();
+    public List<Articulo> PorAcabarse { get; private set; } = new();
+    public string? Error { get; private set; }
 
-    public IndexModel(ConexionBD conexion)
+    public bool CorteDeHoyHecho => Abierta == null && UltimoCerrado?.EsDeHoy == true;
+
+    public string Saludo => DateTime.Now.Hour switch
     {
-        _conexion = conexion;
+        < 12 => "Buenos días",
+        < 19 => "Buenas tardes",
+        _ => "Buenas noches"
+    };
+
+    public IndexModel(CajaNegocio caja, VentaNegocio ventas, ArticuloNegocio articulos)
+    {
+        _caja = caja;
+        _ventas = ventas;
+        _articulos = articulos;
     }
 
     public void OnGet()
     {
         try
         {
-            using var cn = _conexion.CrearConexion();
-            cn.Open();
+            Abierta = _caja.ObtenerAbierta();
 
-            using var cmd = new MySqlCommand("SELECT COUNT(*) FROM Articulo", cn);
-            int total = Convert.ToInt32(cmd.ExecuteScalar());
+            if (Abierta == null)
+            {
+                UltimoCerrado = _caja.ObtenerUltimoCerrado();
+            }
+            else
+            {
+                UltimasVentas = _ventas.ListarPorCorte(Abierta.CorteId).Take(5).ToList();
+            }
 
-            Conectado = true;
-            Mensaje = $"Conectado a MySQL {cn.ServerVersion}. Artículos en inventario: {total}";
+            // Lo que está agotado o por debajo de su mínimo, lo más urgente primero
+            PorAcabarse = _articulos.Listar(null, null, incluirInactivos: false)
+                .Where(a => a.EstadoStock != "OK")
+                .OrderBy(a => a.Stock)
+                .ThenBy(a => a.NombreCompleto)
+                .Take(8)
+                .ToList();
         }
         catch (Exception ex)
         {
-            Mensaje = "No se pudo conectar: " + ex.Message;
+            Error = "No se pudo conectar con la base de datos: " + ex.Message;
         }
+    }
+
+    public IActionResult OnPostAbrir(decimal fondoInicial)
+    {
+        var r = _caja.Abrir(fondoInicial);
+        TempData[r.Exito ? "Mensaje" : "Error"] = r.Mensaje;
+        return r.Exito ? RedirectToPage("/Vender/Index") : RedirectToPage();
     }
 }

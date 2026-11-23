@@ -18,6 +18,8 @@ public class CajaNegocio
 
     public CorteCaja? ObtenerCorte(int corteId) => _caja.ObtenerPorId(corteId);
 
+    public CorteCaja? ObtenerUltimoCerrado() => _caja.ObtenerUltimoCerrado();
+
     public Resultado Abrir(decimal fondoInicial)
     {
         if (fondoInicial < 0)

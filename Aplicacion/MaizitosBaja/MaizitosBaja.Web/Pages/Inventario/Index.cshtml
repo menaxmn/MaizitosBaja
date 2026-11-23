@@ -136,11 +136,11 @@
                             <button type="button" class="btn btn-sm btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown"
                                     data-bs-popper-config='{"strategy":"fixed"}'>Más</button>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" asp-page="/Movimientos/Index" asp-route-pestana="entrada" asp-route-articuloId="@a.ArticuloId">📥 Registrar entrada</a></li>
-                                <li><a class="dropdown-item" asp-page="/Movimientos/Index" asp-route-pestana="salida" asp-route-articuloId="@a.ArticuloId">📤 Uso / merma</a></li>
-                                <li><a class="dropdown-item" asp-page="/Movimientos/Index" asp-route-pestana="ajuste" asp-route-articuloId="@a.ArticuloId">🔢 Ajustar conteo</a></li>
+                                <li><a class="dropdown-item" asp-page="/Movimientos/Index" asp-route-pestana="entrada" asp-route-articuloId="@a.ArticuloId">@Iconos.Svg("entrada") Registrar entrada</a></li>
+                                <li><a class="dropdown-item" asp-page="/Movimientos/Index" asp-route-pestana="salida" asp-route-articuloId="@a.ArticuloId">@Iconos.Svg("salida") Uso / merma</a></li>
+                                <li><a class="dropdown-item" asp-page="/Movimientos/Index" asp-route-pestana="ajuste" asp-route-articuloId="@a.ArticuloId">@Iconos.Svg("ajuste") Ajustar conteo</a></li>
                                 <li><hr class="dropdown-divider" /></li>
-                                <li><a class="dropdown-item" asp-page="/Movimientos/Index" asp-route-pestana="historial" asp-route-articuloId="@a.ArticuloId">📋 Ver movimientos</a></li>
+                                <li><a class="dropdown-item" asp-page="/Movimientos/Index" asp-route-pestana="historial" asp-route-articuloId="@a.ArticuloId">@Iconos.Svg("historial") Ver movimientos</a></li>
                             </ul>
                         </div>
                         <form method="post" asp-page-handler="CambiarEstado" asp-route-id="@a.ArticuloId"

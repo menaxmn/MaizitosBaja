@@ -46,8 +46,8 @@ else if (!Model.Caja.EsDeHoy)
 
     <!-- ===== Orden ===== -->
     <div class="col-lg-5 col-xl-4">
-        <div class="card shadow-sm sticky-top" style="top: 1rem">
-            <div class="card-header bg-warning-subtle">
+        <div class="card sticky-top panel-orden" style="top: 1rem">
+            <div class="card-header encabezado-orden">
                 <input id="nombreOrden" class="form-control" maxlength="50" placeholder="Nombre de la orden (ej. Ana)" autocomplete="off" />
             </div>
             <div class="card-body p-2" style="max-height: 45vh; overflow-y: auto">
@@ -242,9 +242,9 @@ else if (!Model.Caja.EsDeHoy)
     });
     for (const base of Object.keys(grupos)) {
         if (grupos[base].length < 2) { delete grupos[base]; continue; }   // un solo tamaño: se queda normal
-        grupos[base].sort((a, b) =>
-            ordenTamano[a.tamano.toLowerCase().slice(0, -1).replace('grand', 'grand')] -
-            ordenTamano[b.tamano.toLowerCase().slice(0, -1).replace('grand', 'grand')]);
+        // "chico" -> "chic", "mediano" -> "median", "grande" -> "grand"
+        const posicion = o => ordenTamano[o.tamano.toLowerCase().slice(0, -1)];
+        grupos[base].sort((a, b) => posicion(a) - posicion(b));
     }
     const enGrupo = new Set(Object.values(grupos).flat().map(o => o.id));
     const capitalizar = t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
@@ -295,12 +295,12 @@ else if (!Model.Caja.EsDeHoy)
                         </button></div>`;
                 });
         } else {
-            const grupos = {};
+            const porCategoria = {};
             datos.sueltos
                 .filter(a => (a.nombre + ' ' + a.categoria).toLowerCase().includes(q))
-                .forEach(a => (grupos[a.categoria] ??= []).push(a));
+                .forEach(a => (porCategoria[a.categoria] ??= []).push(a));
 
-            for (const [categoria, lista] of Object.entries(grupos)) {
+            for (const [categoria, lista] of Object.entries(porCategoria)) {
                 html += `<div class="col-12 mt-2"><h6 class="text-muted mb-0">${esc(categoria)}</h6></div>`;
                 lista.forEach(a => {
                     const quedan = a.stock - apartado(a.id, null);

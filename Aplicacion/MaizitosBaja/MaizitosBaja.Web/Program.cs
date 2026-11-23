@@ -1,13 +1,43 @@
+using System.Diagnostics;
 using System.Globalization;
+using System.Net;
+using System.Net.Sockets;
 using MaizitosBaja.Datos;
 using MaizitosBaja.Negocios;
 
-var builder = WebApplication.CreateBuilder(args);
+// ---------------------------------------------------------------------------
+// Dos formas de correr el sistema:
+//  - Desarrollo (Visual Studio): igual que siempre, https y User Secrets.
+//  - Instalado (C:\MaizitosBaja\App): http://localhost:5050, la conexión viene
+//    de appsettings.Production.json y se abre solo en una ventana tipo programa.
+// ---------------------------------------------------------------------------
+bool esDesarrollo = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
+const int PuertoInstalado = 5050;
+string urlInstalado = $"http://localhost:{PuertoInstalado}";
 
-// Add services to the container.
+if (!esDesarrollo && PuertoOcupado(PuertoInstalado))
+{
+    // Ya está abierto: no se arranca otro, solo se muestra la ventana
+    AbrirVentana(urlInstalado);
+    return;
+}
+
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    // Instalado: los archivos (wwwroot, appsettings) están junto al .exe,
+    // aunque se abra desde un acceso directo en el escritorio
+    ContentRootPath = esDesarrollo ? null : AppContext.BaseDirectory
+});
+
+if (!esDesarrollo)
+    builder.WebHost.UseUrls(urlInstalado);   // solo esta computadora (localhost)
+
 builder.Services.AddRazorPages();
 
-// Conexión a MySQL (la cadena viene de User Secrets)
+// Conexión a MySQL:
+//  - Desarrollo: User Secrets
+//  - Instalado: appsettings.Production.json junto al .exe
 var cadena = builder.Configuration.GetConnectionString("MaizitosBaja") ?? "";
 builder.Services.AddSingleton(new ConexionBD(cadena));
 
@@ -38,15 +68,18 @@ CultureInfo.DefaultThreadCurrentUICulture = cultura;
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
+    app.UseHttpsRedirection();
 }
+else
+{
+    // Instalado: sin https (solo se usa en esta computadora) y con página de error amigable
+    app.UseExceptionHandler("/Error");
 
-app.UseHttpsRedirection();
+    // Al terminar de arrancar, se abre la ventana del sistema
+    app.Lifetime.ApplicationStarted.Register(() => AbrirVentana(urlInstalado));
+}
 
 app.UseRouting();
 
@@ -57,3 +90,36 @@ app.MapRazorPages()
    .WithStaticAssets();
 
 app.Run();
+
+
+// ---------- Funciones de apoyo ----------
+
+// ¿Ya hay algo escuchando en ese puerto? (o sea, el sistema ya está abierto)
+static bool PuertoOcupado(int puerto)
+{
+    try
+    {
+        var prueba = new TcpListener(IPAddress.Loopback, puerto);
+        prueba.Start();
+        prueba.Stop();
+        return false;
+    }
+    catch (SocketException)
+    {
+        return true;
+    }
+}
+
+// Abre el sistema en una ventana de Edge sin barra de direcciones (parece programa).
+// Si Edge no está, usa el navegador predeterminado.
+static void AbrirVentana(string url)
+{
+    try
+    {
+        Process.Start(new ProcessStartInfo("msedge", $"--app={url} --start-maximized") { UseShellExecute = true });
+    }
+    catch
+    {
+        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+    }
+}

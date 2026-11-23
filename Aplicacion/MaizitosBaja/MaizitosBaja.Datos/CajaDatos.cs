@@ -29,6 +29,12 @@ public class CajaDatos
         return LeerUno(SelectResumen + " WHERE r.Estado = 'Abierto' ORDER BY r.CorteId DESC LIMIT 1", null);
     }
 
+    // El corte cerrado más reciente (para la pantalla de Inicio)
+    public CorteCaja? ObtenerUltimoCerrado()
+    {
+        return LeerUno(SelectResumen + " WHERE r.Estado = 'Cerrado' ORDER BY r.CorteId DESC LIMIT 1", null);
+    }
+
     public CorteCaja? ObtenerPorId(int corteId)
     {
         return LeerUno(SelectResumen + " WHERE r.CorteId = @id", corteId);

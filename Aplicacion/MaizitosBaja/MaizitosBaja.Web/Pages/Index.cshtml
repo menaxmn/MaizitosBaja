@@ -2,17 +2,156 @@
 @model IndexModel
 @{
     ViewData["Title"] = "Inicio";
+    var hoy = DateTime.Today.ToString("dddd d 'de' MMMM");
 }
 
-<div class="text-center">
-    <h1 class="display-4">Maizitos Baja 🌽</h1>
-    <div class="alert @(Model.Conectado ? "alert-success" : "alert-danger") mt-4">
-        @Model.Mensaje
+@if (TempData["Mensaje"] is string mensaje)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @mensaje <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
-    <div class="d-flex gap-2 justify-content-center mt-2">
-        <a asp-page="/Vender/Index" class="btn btn-warning btn-lg">Vender</a>
-        <a asp-page="/Caja/Index" class="btn btn-outline-dark btn-lg">Caja</a>
-        <a asp-page="/Productos/Index" class="btn btn-outline-dark btn-lg">Productos</a>
-        <a asp-page="/Inventario/Index" class="btn btn-outline-dark btn-lg">Inventario</a>
+}
+@if (TempData["Error"] is string errorTemp)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @errorTemp <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
-</div>
+}
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+
+@if (Model.Abierta == null)
+{
+    <!-- ============ CAJA CERRADA: abrir caja ============ -->
+    <section class="abrir-caja mb-4">
+        <div class="row align-items-center g-3">
+            <div class="col">
+                <p class="inicio-saludo mb-1" style="color: #D9D0AE">@Model.Saludo, hoy es @hoy</p>
+
+                @if (Model.CorteDeHoyHecho)
+                {
+                    <h1>Hoy ya se hizo el corte</h1>
+                    <p>Solo se permite una caja por día. Mañana podrás abrirla de nuevo.</p>
+                    <a asp-page="/Caja/Index" class="btn btn-warning">Ver el corte de hoy</a>
+                }
+                else
+                {
+                    <h1>Abre la caja para empezar</h1>
+                    <p>Cuenta el dinero con el que empiezas para dar cambio y escríbelo aquí.</p>
+
+                    <form method="post" asp-page-handler="Abrir" class="form-abrir">
+                        <div class="input-group">
+                            <span class="input-group-text">Fondo $</span>
+                            <input name="fondoInicial" type="number" step="0.01" min="0" class="form-control"
+                                   placeholder="500" required autofocus />
+                        </div>
+                        <button type="submit" class="btn btn-warning">Abrir caja</button>
+                    </form>
+                }
+
+                @if (Model.UltimoCerrado != null)
+                {
+                    <p class="small mt-3 mb-0" style="color: #B9AF8C">
+                        Último corte: @Model.UltimoCerrado.FechaCorte.ToString("dddd d/MM"),
+                        @Model.UltimoCerrado.NumVentas ventas por @Model.UltimoCerrado.TotalVendido.ToString("C").
+                        <a asp-page="/Caja/Index" asp-route-cerrado="@Model.UltimoCerrado.CorteId" style="color: var(--maiz)">Ver detalle</a>
+                    </p>
+                }
+            </div>
+            <div class="col-auto d-none d-md-block">
+                <img src="~/img/logo-grande.png" alt="" class="logo-hero" />
+            </div>
+        </div>
+    </section>
+}
+else if (!Model.Abierta.EsDeHoy)
+{
+    <!-- ============ CAJA DE OTRO DÍA: falta el corte ============ -->
+    <section class="abrir-caja mb-4">
+        <p class="inicio-saludo mb-1" style="color: #D9D0AE">@Model.Saludo, hoy es @hoy</p>
+        <h1>Falta hacer el corte</h1>
+        <p>
+            La caja del <b>@Model.Abierta.FechaApertura.ToString("dddd d/MM")</b> sigue abierta,
+            con @Model.Abierta.NumVentas ventas por @Model.Abierta.TotalVendido.ToString("C").
+            Haz el corte para poder abrir la caja de hoy.
+        </p>
+        <a asp-page="/Caja/Index" class="btn btn-warning">Hacer el corte</a>
+    </section>
+}
+else
+{
+    <!-- ============ CAJA ABIERTA HOY: resumen del día ============ -->
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+        <div>
+            <p class="inicio-saludo">@Model.Saludo, hoy es @hoy</p>
+            <h1 class="m-0" style="font-size: 2.6rem">Así va el día</h1>
+        </div>
+        <a asp-page="/Vender/Index" class="btn btn-warning btn-lg px-4">Vender</a>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="dato destacado">
+                <div class="valor">@Model.Abierta.TotalVendido.ToString("C")</div>
+                <div class="etiqueta">Vendido hoy</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="dato">
+                <div class="valor">@Model.Abierta.NumVentas</div>
+                <div class="etiqueta">@(Model.Abierta.NumVentas == 1 ? "Venta" : "Ventas")</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="dato">
+                <div class="valor">@Model.Abierta.EfectivoEsperado.ToString("C")</div>
+                <div class="etiqueta">Efectivo que debe haber en caja</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="dato">
+                <div class="valor">@((Model.Abierta.VentasTarjeta + Model.Abierta.VentasTransferencia).ToString("C"))</div>
+                <div class="etiqueta">Tarjeta y transferencia</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h3 class="h4 m-0">Últimas ventas</h3>
+                <a asp-page="/Caja/Index" class="small fw-bold">Ver todas en Caja</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <tbody>
+                        @if (Model.UltimasVentas.Count == 0)
+                        {
+                            <tr><td class="text-center text-muted py-4">Todavía no hay ventas hoy. ¡A vender! 🌽</td></tr>
+                        }
+                        @foreach (var v in Model.UltimasVentas)
+                        {
+                            <tr class="@(v.Estado == "Cancelada" ? "text-muted text-decoration-line-through" : "")">
+                                <td class="text-nowrap small">@v.Fecha.ToString("h:mm tt")</td>
+                                <td>
+                                    <div class="fw-bold">@(v.NombreOrden ?? "#" + v.VentaId)</div>
+                                    <div class="small text-muted">@v.Conceptos</div>
+                                </td>
+                                <td class="text-end fw-bold text-nowrap">
+                                    @(v.Tipo == "ConsumoPersonal" ? "Consumo" : v.Total.ToString("C"))
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+    </div>
+    @await Html.PartialAsync("_PorAcabarse", Model.PorAcabarse)
+}
+
+@if (Model.Abierta == null || !Model.Abierta.EsDeHoy)
+{
+    <!-- Aunque la caja esté cerrada, sirve saber qué resurtir -->
+    @await Html.PartialAsync("_PorAcabarse", Model.PorAcabarse)
+}

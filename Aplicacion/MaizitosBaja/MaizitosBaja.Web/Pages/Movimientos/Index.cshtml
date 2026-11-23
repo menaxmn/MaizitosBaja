@@ -5,10 +5,10 @@
 
     var titulos = new Dictionary<string, string>
     {
-        ["entrada"] = "📥 Entrada",
-        ["salida"] = "📤 Uso / Merma",
-        ["ajuste"] = "🔢 Ajuste por conteo",
-        ["historial"] = "📋 Historial"
+        ["entrada"] = "Entrada",
+        ["salida"] = "Uso / Merma",
+        ["ajuste"] = "Ajuste por conteo",
+        ["historial"] = "Historial"
     };
 
     // Opciones de artículo agrupadas por tipo y categoría (se usa en varios <select>).
@@ -64,7 +64,7 @@
     {
         <li class="nav-item">
             <a class="nav-link @(Model.Pestana == p ? "active fw-semibold" : "text-dark")"
-               asp-page="./Index" asp-route-pestana="@p">@titulos[p]</a>
+               asp-page="./Index" asp-route-pestana="@p">@Iconos.Svg(p) @titulos[p]</a>
         </li>
     }
 </ul>
@@ -131,7 +131,7 @@
 else if (Model.Pestana == "salida")
 {
     <!-- ================= SALIDA ================= -->
-    <form method="post" asp-page-handler="Salida" class="card shadow-sm" style="max-width: 640px"
+    <form method="post" asp-page-handler="Salida" class="card shadow-sm"
           onsubmit="return confirm('¿Registrar la salida? Se descontará del inventario.')">
         <div class="card-body">
             <p class="text-muted">Lo que sale del inventario sin venderse.</p>
@@ -173,7 +173,7 @@ else if (Model.Pestana == "salida")
 else if (Model.Pestana == "ajuste")
 {
     <!-- ================= AJUSTE ================= -->
-    <form method="post" asp-page-handler="Ajuste" class="card shadow-sm" style="max-width: 640px">
+    <form method="post" asp-page-handler="Ajuste" class="card shadow-sm">
         <div class="card-body">
             <p class="text-muted">Cuando cuentes físicamente y no cuadre, escribe cuántos hay en realidad.</p>
 
